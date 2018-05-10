@@ -13,36 +13,42 @@ Options:
   --fullscreen       Display in fullscreen
 """
 
+from klikatko import Config
+
 from PIL import Image, ImageTk
 from docopt import docopt
 import numpy as np
 import tkinter as tk
 from tkinter import ttk
 import logging
+import pandas as pd
+import os
 
 # main logger
-log = logging.getLogger()
+log = logging.getLogger("Klikatko")
 
 
 # text
 def main():
     opt = docopt(__doc__)
+    csvfile = opt["<csvfile>"]
 
     # setup logging
     logging.basicConfig(level = "DEBUG" if opt["--debug"] else "INFO")
+
+    # initialize config
+    conf = Config(opt["--config"])
+
+    # prepare database
+    sampledb = SampleDB(csvfile, 1)
 
     root = tk.Tk()
 
     if opt['--fullscreen']:
         root.geometry("{0}x{1}+0+0".format(root.winfo_screenwidth(), root.winfo_screenheight()))
     else:
-        root.geometry("300x300+200+200")
-    app = KlikatkoApp(master=root)
-
-    # move the window to top on MacOS
-    root.lift()
-    root.call('wm', 'attributes', '.', '-topmost', True)
-    root.after_idle(root.call, 'wm', 'attributes', '.', '-topmost', False)
+        root.geometry("1000x1000+200+200")
+    app = KlikatkoApp(sampledb,master=root)
 
     # set quit functions
     root.protocol("WM_DELETE_WINDOW", app.on_quit)
@@ -51,17 +57,126 @@ def main():
     app.mainloop()
 
 
-class ImageSample(object):
+class SampleDB(object):
 
-    def __init__(self, filename, **kvargs):
-        self.filename = filename
-        self.kvargs = kvargs
+    def __init__(self, filename, outcolumn, incolumn=None, default=''):
+        self.dbfilename = filename
+        log.info("DB file: %s", self.dbfilename)
+
+        self.base_path = os.path.dirname(self.dbfilename)
+        log.info("Base path: %s", self.base_path)
+
+        # get image size
+        self.first_image = None
+        self.im_size = None
+        log.info("Image size: %s", str(self.get_image_size()))
+
+        # config
+        self.conf = Config()
+
+    def get_image_size(self):
+        if self.im_size is None:
+            # get size of the imag
+            with open(self.dbfilename, "r") as f:
+                _ = f.readline()
+                line = f.readline()
+                imagefile = line.split(";")[0]
+                self.first_image = os.path.join(self.base_path, imagefile)
+
+                with Image.open(self.first_image) as im:
+                    self.im_size = im.size
+
+        return self.im_size
+
+    def images(self, chunk_size):
+        pass
+
+    def close(self):
+        self.dbfile.close()
+
+
+class ImageGridTk(tk.Frame):
+
+    def __init__(self, imagedb, master=None):
+        super().__init__(master, bg='black')
+        self.imagedb = imagedb
+        self.buttons = []
+        self.bind("<Configure>", self.on_configure)
+        self.conf = Config()
+        self.zoom = self.conf["zoom_default"]
+        self.border = self.conf["image_border"]
+        self.padding = self.conf["image_padding"]
+
+    def on_configure(self, event):
+        log.debug("Configure event: %d, %d", event.width, event.height)
+        self.widget_size = (event.width, event.height)
+        self.update_ui()
+
+    def clear_all(self):
+        for button in self.buttons:
+            button.grid_forget()
+            button.destroy()
+        self.buttons = []
+
+    def update_ui(self):
+        # log.debug("update ui size: %s zoom: %f", size, zoom)
+        self.clear_all()
+
+        # get size of the widget
+        widget_width, widget_height = self.widget_size
+        log.debug("ImageGridTk wheight: {} wwidth: {}".format(widget_height, widget_width))
+
+        # size of the image
+        image_width, image_height = self.imagedb.im_size
+
+        # compute number of rows and collumns
+        rows = int(widget_height // (image_height*self.zoom + 2*self.padding + 2*self.border))
+        cols = int(widget_width // (image_width*self.zoom + 2*self.padding + 2*self.border))
+
+        log.debug("ImageGridTk rows: {} cols: {}".format(rows, cols))
+
+        for i in range(rows):
+            self.rowconfigure(i, pad=self.padding)
+
+        for j in range(cols):
+            self.columnconfigure(j, pad=self.padding)
+
+        for i in range(rows):
+            for j in range(cols):
+                button = self.add_button(self.imagedb.first_image, zoom=0.2)
+                button.grid(row=i, column=j)
+                self.buttons.append(button)
+        self.pack()
+
+    def add_button(self, imagename, zoom=1):
+        log.debug("Image: %s", imagename)
+
+        button = tk.Button(self,
+                           bd=self.border,
+                           bg='red3',
+                           activebackground="red",
+                           relief=tk.FLAT)
+
+        button["text"] = imagename
+        button["command"] = lambda : self.click(button)
+        image = Image.open(imagename)
+
+        if zoom != 1:
+            image = image.resize((int(image.size[0]*zoom),int(image.size[1]*zoom)))
+        photo = ImageTk.PhotoImage(image)
+        button["image"] = photo
+        button.photo = photo
+        return button
+
+    def click(self, button):
+        button.configure(bg = "green", activebackground="green2")
 
 
 class KlikatkoApp(tk.Frame):
 
-    def __init__(self, master=None):
+    def __init__(self, imagedb, master=None):
         super().__init__(master)
+        self.imagedb = imagedb
         self.pack()
         self.init_ui()
 
@@ -73,18 +188,21 @@ class KlikatkoApp(tk.Frame):
         self.toolbar = tk.Frame(self)
         self.toolbar.pack(side="top", fill="both", expand=False)
 
-        self.quit = self.add_button(self.toolbar, "quit",
+        self.quit = self.add_button(self.toolbar, "Next",
                                     command=self.on_quit)
 
-        self.test = self.add_button(self.toolbar, "test",
+        self.test = self.add_button(self.toolbar, "Mark OK",
+                                    command=self.on_test,
+                                    shortcut="<Return>")
+
+        self.test = self.add_button(self.toolbar, "Mark Bad",
                                     command=self.on_test,
                                     shortcut="<Return>")
 
         # grid view
-        self.grid = tk.Frame(self, bg="red")
+        self.grid = ImageGridTk(self.imagedb, self)
         self.grid.pack(fill=tk.BOTH, expand=True)
         self.pack(fill=tk.BOTH, expand=True)
-        self.grid.bind('<Button-1>', self.on_mouse_motion)
 
         return
 
