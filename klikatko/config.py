@@ -16,7 +16,7 @@ class Config(collections.UserDict):
         if filename is not None:
             self.data.update(json_load_commented(filename))
 
-        if len(self.data):
+        if len(self.data) == 0:
             log.warn("Empty configuration!")
 
 
