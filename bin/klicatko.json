@@ -1,7 +1,9 @@
 {
-    "zoom_default":0.2,
+
+    "zoom_default":0.2, // default time zoom when the app starts
     "zoom_min":0.1,
     "zoom_max":1.2,
+    "zoom_step":0.2,    // 
     "image_border":2,
     "image_padding":2
 }
