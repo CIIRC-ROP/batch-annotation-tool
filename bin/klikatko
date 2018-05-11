@@ -28,7 +28,6 @@ import os
 log = logging.getLogger("Klikatko")
 
 
-# text
 def main():
     opt = docopt(__doc__)
     csvfile = opt["<csvfile>"]
@@ -99,6 +98,8 @@ class ImageGridTk(tk.Frame):
 
     def __init__(self, imagedb, master=None):
         super().__init__(master, bg='black')
+        self.init_ui()
+
         self.imagedb = imagedb
         self.buttons = []
         self.bind("<Configure>", self.on_configure)
@@ -107,10 +108,36 @@ class ImageGridTk(tk.Frame):
         self.border = self.conf["image_border"]
         self.padding = self.conf["image_padding"]
 
+    def init_ui(self):
+
+        self.button_zoom_in = self.master.add_button(self.master.toolbar, "+",
+                                              command=self.on_zoom_in)
+        self.button_zoom_out = self.master.add_button(self.master.toolbar, "-",
+                                              command=self.on_zoom_out)
+
     def on_configure(self, event):
         log.debug("Configure event: %d, %d", event.width, event.height)
         self.widget_size = (event.width, event.height)
         self.update_ui()
+
+    def on_zoom_in(self):
+        log.debug("on_zoom_in() current zoom: %f", self.zoom)
+        if self.zoom + self.conf["zoom_step"] <= self.conf["zoom_max"]:
+            self.zoom += self.conf["zoom_step"]
+            self.update_ui()
+        else:
+            log.warn("Already maximal zoom.")
+
+    def on_zoom_out(self):
+        log.debug("on_zoom_out() current zoom: %f", self.zoom)
+        if self.zoom - self.conf["zoom_step"] >= self.conf["zoom_min"]:
+            self.zoom -= self.conf["zoom_step"]
+            self.update_ui()
+        else:
+            log.warn("Already minimal zoom.")
+
+    def on_zoom_reset(self):
+        self.zoom = self.conf["zoom_default"]
 
     def clear_all(self):
         for button in self.buttons:
@@ -143,7 +170,7 @@ class ImageGridTk(tk.Frame):
 
         for i in range(rows):
             for j in range(cols):
-                button = self.add_button(self.imagedb.first_image, zoom=0.2)
+                button = self.add_button(self.imagedb.first_image, zoom=self.zoom)
                 button.grid(row=i, column=j)
                 self.buttons.append(button)
         self.pack()
