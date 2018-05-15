@@ -124,12 +124,14 @@ class ImageGridTk(tk.Frame):
 
         self.imagedb = imagedb
         self.buttons = dict()
+        self.classes = dict()
         self.bind("<Configure>", self.on_configure)
 
         self.zoom = self.conf["zoom_default"]
         self.border = self.conf["image_border"]
         self.padding = self.conf["image_padding"]
         self.current_class_desc = None
+        self.default_class_desc = None
 
         self.index = 0
         self.num_images = 0
@@ -141,18 +143,27 @@ class ImageGridTk(tk.Frame):
         # initialize toolbar frame and its content
         self.tool = tk.Frame(self)
 
+        # go through class descritions
         self.class_descs = dict()
         for cdesc in self.conf["classes"]:
             self.init_class(cdesc)
             self.class_descs[cdesc['value']] = cdesc
             if cdesc['default']:
                 self.current_class_desc = cdesc
+                self.default_class_desc = cdesc
 
 
+        # next prev button
+
+        self.bt_next = self.create_toolbar_button("Prev",
+                                                  key="<Return>",
+                                                  cmd=self.on_prev,
+                                                  side=tk.LEFT)
         self.bt_next = self.create_toolbar_button("Next",
                                                   key="<Return>",
                                                   cmd=self.on_next,
                                                   side=tk.LEFT)
+
 
         self.bt_zoom_in = self.create_toolbar_button("+",
                                                      cmd=self.on_zoom_in,
@@ -230,6 +241,9 @@ class ImageGridTk(tk.Frame):
     def on_next(self, event=None):
         log.debug("on_next()")
         self.index += self.num_images
+
+        self.store_annotations()
+
         self.update_grid()
         self.update_info()
 
@@ -248,8 +262,14 @@ class ImageGridTk(tk.Frame):
 
         self.annotate(index, self.current_class_desc)
 
+    def store_annotations(self):
+        # store annotations
+        for key, val in self.classes.items():
+            self.imagedb.annotate(key, val, self.column_out)
+
     def annotate(self, index, cdesc):
-        log.debug("annotate(index=%d)", index, )
+        log.debug("annotate(index=%d)", index)
+        self.classes[index] = cdesc['value']
         self.update_image_button(index, cdesc)
 
     def update_image_button(self, index, cdesc):
@@ -316,10 +336,21 @@ class ImageGridTk(tk.Frame):
         for i in range(rows):
             for j in range(cols):
                 image_path = os.path.join(self.imagedb.base_path, chunk.iloc[k,0])
-                image_class = chunk.iloc[k,1]
                 image_index = self.index + k
 
-                button = self.create_image_button(image_path, index=image_index, zoom=self.zoom)
+
+                if not np.isnan(chunk.iloc[k,self.column_out]):
+                    cdesc = self.class_descs[chunk.iloc[k,self.column_out]]
+                elif not np.isnan(chunk.iloc[k,self.column_in]):
+                    cdesc = self.class_descs[chunk.iloc[k,self.column_in]]
+                else:
+                    cdesc = self.default_class_desc
+
+                self.classes[image_index] = cdesc['value']
+                button = self.create_image_button(image_path,
+                                                  index=image_index,
+                                                  zoom=self.zoom,
+                                                  cdesc=cdesc)
                 button.grid(row=i, column=j)
                 self.buttons[image_index] = button
                 k += 1
@@ -327,12 +358,12 @@ class ImageGridTk(tk.Frame):
         # pack frame
         self.grid.pack()
 
-    def create_image_button(self, imagename, index, zoom=1):
+    def create_image_button(self, imagename, index, cdesc, zoom=1):
         log.debug("create_image_button(imagename=%s,...)", imagename)
         button = tk.Button(self.grid,
                            bd=self.border,
-                           bg='red3',
-                           activebackground="red",
+                           bg=cdesc['color'],
+                           activebackground=cdesc['color'],
                            relief=tk.FLAT)
 
         button["text"] = imagename
