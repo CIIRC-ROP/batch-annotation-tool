@@ -38,7 +38,7 @@
 	{
 	    "name":"bad",
 	    "value":254,
-	    "defautl":false,
+	    "default":false,
 	    "color":"red",
 	    "button_all":{
 		"text":"All bad",

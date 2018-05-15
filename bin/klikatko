@@ -104,7 +104,7 @@ class SampleDB(object):
         return chunk
 
     def annotate(self, index, value, column):
-        self.table[index,column] = value
+        self.table.iloc[index,column] = value
 
     def write(self):
         pass
@@ -118,6 +118,9 @@ class ImageGridTk(tk.Frame):
     def __init__(self, imagedb, master=None):
         super().__init__(master, bg='black')
         self.conf = Config()
+        self.column_path = self.conf["column_path"]
+        self.column_in   = self.conf["column_in"]
+        self.column_out  = self.conf["column_out"]
 
         self.imagedb = imagedb
         self.buttons = dict()
@@ -142,6 +145,8 @@ class ImageGridTk(tk.Frame):
         for cdesc in self.conf["classes"]:
             self.init_class(cdesc)
             self.class_descs[cdesc['value']] = cdesc
+            if cdesc['default']:
+                self.current_class_desc = cdesc
 
 
         self.bt_next = self.create_toolbar_button("Next",
@@ -187,12 +192,14 @@ class ImageGridTk(tk.Frame):
         log.debug("Configure event: %d, %d", event.width, event.height)
         self.widget_size = (event.width, event.height)
         self.update_grid()
+        self.update_info()
 
     def on_zoom_in(self):
         log.debug("on_zoom_in() current zoom: %f", self.zoom)
         if self.zoom + self.conf["zoom_step"] <= self.conf["zoom_max"]:
             self.zoom += self.conf["zoom_step"]
             self.update_grid()
+            self.update_info()
         else:
             log.warn("Already maximal zoom.")
 
@@ -201,34 +208,55 @@ class ImageGridTk(tk.Frame):
         if self.zoom - self.conf["zoom_step"] >= self.conf["zoom_min"]:
             self.zoom -= self.conf["zoom_step"]
             self.update_grid()
+            self.update_info()
         else:
             log.warn("Already minimal zoom.")
 
     def on_zoom_reset(self):
         self.zoom = self.conf["zoom_default"]
+        self.update_grid()
+        self.update_info()
 
     def on_mark_all(self, aclass):
         log.debug("on_mark_all(aclass=%s)", aclass["name"])
+        for key in self.buttons.keys():
+            self.annotate(key, aclass)
 
     def on_select(self, aclass):
         log.debug("on_select(aclass=%s)", aclass["name"])
+        self.current_class_desc = aclass
+        self.update_info()
 
     def on_next(self, event=None):
         log.debug("on_next()")
         self.index += self.num_images
         self.update_grid()
+        self.update_info()
 
     def on_prev(self, event=None):
         log.debug("on_prev()")
         self.index = max(0, self.index - self.num_images)
         self.update_grid()
+        self.update_info()
 
     def on_click(self, index):
         log.debug("on_click(index=%d)", index)
 
-        # update button color
-        self.buttons[index].configure(bg='green')
-        
+        if self.current_class_desc is None:
+            log.warn("No active class")
+            return
+
+        self.annotate(index, self.current_class_desc)
+
+    def annotate(self, index, cdesc):
+        log.debug("annotate(index=%d)", index, )
+        self.update_image_button(index, cdesc)
+
+    def update_image_button(self, index, cdesc):
+        button = self.buttons[index]
+        button.configure(bg=cdesc['color'],
+                         activebackground=cdesc['color'])
+
     def clear_all(self):
         log.debug("clear_all()")
         for button in self.buttons.values():
@@ -240,7 +268,8 @@ class ImageGridTk(tk.Frame):
         log.debug("update_info()")
 
         text = []
-        text.append("test")
+
+        text.append("index:{}".format(self.index))
 
         if self.num_images > 0:
             text.append("images:{}".format(self.num_images))
@@ -248,7 +277,9 @@ class ImageGridTk(tk.Frame):
         if self.current_class_desc:
             text.append("select:{}".format(self.current_class_desc["name"]))
             self.info["bg"] = self.current_class_desc["color"]
+            self.info_label["bg"] = self.current_class_desc["color"]
         text.append("zoom:{}".format(self.zoom))
+
         self.info_label['text'] = " | ".join(text)
 
     def update_grid(self):
