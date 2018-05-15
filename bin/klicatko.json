@@ -1,9 +1,53 @@
 {
 
-    "zoom_default":0.2, // default time zoom when the app starts
-    "zoom_min":0.1,
-    "zoom_max":1.2,
-    "zoom_step":0.2,    // 
-    "image_border":2,
-    "image_padding":2
+    // User interface
+    "zoom_default":0.2, // Default image zoom when the app starts
+    "zoom_min":0.1,     // Minimal image zoom
+    "zoom_max":1.2,     // Maximal image zoom
+    "zoom_step":0.2,    // Zoom step for zoom in and zoom out
+    "image_border":2,   // Size of the color border of the image
+    "image_padding":2,  // Space between images
+    "geometry":"1000x1000+200+200", // Initial geometry of the window (HxH+x+y)
+    "background":"black", // Grid background
+
+    // Annotation file
+    "csv_sep":";",      // Column separator for cvs parsing
+    "csv_decimal":".",  // Decimal separator for cvs parsing
+    "column_path":0,    // Column of the image path, starting from 0
+    "column_in":1,      // Input columnt for annotation, -1 for none
+    "column_out":2,     // Output column for annotation
+    "defaul_class":1,   // Value of the default class
+
+    // Annotation
+    "classes":[
+	{
+	    "name":"ok",                // Name of the class
+	    "value":1,                  // Value that is used to represent a class
+	    "default":true,             // Select default class
+	    "color":"green",            // Color used to mark this class
+	    "button_all":{              // Optional: Button to mark all visible images by this class
+		"text":"All ok",        //           Text of the button
+		"key":""                //           Keyboard shortcut
+	    },
+	    "button_select":{
+		"text":"Select ok",
+		"key":""
+	    }
+
+	},
+	{
+	    "name":"bad",
+	    "value":254,
+	    "defautl":false,
+	    "color":"red",
+	    "button_all":{
+		"text":"All bad",
+		"key":""
+	    },
+	    "button_select":{
+		"text":"Select bad",
+		"key":""
+	    }
+	}
+    ]
 }

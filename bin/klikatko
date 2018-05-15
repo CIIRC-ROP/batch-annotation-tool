@@ -33,7 +33,7 @@ def main():
     csvfile = opt["<csvfile>"]
 
     # setup logging
-    logging.basicConfig(level = "DEBUG" if opt["--debug"] else "INFO")
+    setup_logging(level = "DEBUG" if opt["--debug"] else "INFO")
 
     # initialize config
     conf = Config(opt["--config"])
@@ -46,7 +46,7 @@ def main():
     if opt['--fullscreen']:
         root.geometry("{0}x{1}+0+0".format(root.winfo_screenwidth(), root.winfo_screenheight()))
     else:
-        root.geometry("1000x1000+200+200")
+        root.geometry(conf["geometry"])
     app = KlikatkoApp(sampledb,master=root)
 
     # set quit functions
@@ -72,6 +72,17 @@ class SampleDB(object):
 
         # config
         self.conf = Config()
+        self.column_path = self.conf["column_path"]
+        self.column_in   = self.conf["column_in"]
+        self.column_out  = self.conf["column_out"]
+
+        # table of paths and annotations
+        self.table = pd.read_csv(self.dbfilename,
+                                 sep=self.conf["csv_sep"],
+                                 decimal=self.conf["csv_decimal"],
+                                 header=None)
+
+        self.table = pd_ensure_columns(self.table, max(self.column_in, self.column_out))
 
     def get_image_size(self):
         if self.im_size is None:
@@ -87,44 +98,101 @@ class SampleDB(object):
 
         return self.im_size
 
-    def images(self, chunk_size):
+    def chunk(self, start, n):
+        end = start + n
+        chunk = self.table.iloc[start:end]
+        return chunk
+
+    def annotate(self, index, value, column):
+        self.table[index,column] = value
+
+    def write(self):
         pass
 
     def close(self):
+        self.write()
         self.dbfile.close()
-
 
 class ImageGridTk(tk.Frame):
 
     def __init__(self, imagedb, master=None):
         super().__init__(master, bg='black')
-        self.init_ui()
+        self.conf = Config()
 
         self.imagedb = imagedb
-        self.buttons = []
+        self.buttons = dict()
         self.bind("<Configure>", self.on_configure)
-        self.conf = Config()
+
         self.zoom = self.conf["zoom_default"]
         self.border = self.conf["image_border"]
         self.padding = self.conf["image_padding"]
+        self.current_class_desc = None
+
+        self.index = 0
+        self.num_images = 0
+        self.init_ui()
+
 
     def init_ui(self):
 
-        self.button_zoom_in = self.master.add_button(self.master.toolbar, "+",
-                                              command=self.on_zoom_in)
-        self.button_zoom_out = self.master.add_button(self.master.toolbar, "-",
-                                              command=self.on_zoom_out)
+        # initialize toolbar frame and its content
+        self.tool = tk.Frame(self)
+
+        self.class_descs = dict()
+        for cdesc in self.conf["classes"]:
+            self.init_class(cdesc)
+            self.class_descs[cdesc['value']] = cdesc
+
+
+        self.bt_next = self.create_toolbar_button("Next",
+                                                  key="<Return>",
+                                                  cmd=self.on_next,
+                                                  side=tk.LEFT)
+
+        self.bt_zoom_in = self.create_toolbar_button("+",
+                                                     cmd=self.on_zoom_in,
+                                                     side=tk.RIGHT)
+
+        self.bt_zoom_out = self.create_toolbar_button("-",
+                                                      cmd=self.on_zoom_out,
+                                                      side=tk.RIGHT)
+
+        # initialize grid
+        self.grid = tk.Frame(self)
+
+        # initialize info line
+        self.info = tk.Frame(self)
+        self.info_label = tk.Label(self.info, text="text")
+        self.info_label.pack(side=tk.LEFT)
+
+        self.tool.pack(side="top", fill="both", expand=False)
+        self.grid.pack()
+        self.info.pack(side="bottom", fill="both", expand=False)
+
+        self.update_info()
+
+    def init_class(self, desc):
+        if "button_all" in desc:
+            button = self.create_toolbar_button(**desc["button_all"],
+                                             cmd=lambda: self.on_mark_all(desc))
+            button.pack(side=tk.LEFT)
+
+        if "button_select" in desc:
+            button = self.create_toolbar_button(**desc["button_select"],
+                                             cmd=lambda: self.on_select(desc))
+            button.pack(side=tk.LEFT)
+
 
     def on_configure(self, event):
         log.debug("Configure event: %d, %d", event.width, event.height)
         self.widget_size = (event.width, event.height)
-        self.update_ui()
+        self.update_grid()
 
     def on_zoom_in(self):
         log.debug("on_zoom_in() current zoom: %f", self.zoom)
         if self.zoom + self.conf["zoom_step"] <= self.conf["zoom_max"]:
             self.zoom += self.conf["zoom_step"]
-            self.update_ui()
+            self.update_grid()
         else:
             log.warn("Already maximal zoom.")
 
@@ -132,60 +200,112 @@ class ImageGridTk(tk.Frame):
         log.debug("on_zoom_out() current zoom: %f", self.zoom)
         if self.zoom - self.conf["zoom_step"] >= self.conf["zoom_min"]:
             self.zoom -= self.conf["zoom_step"]
-            self.update_ui()
+            self.update_grid()
         else:
             log.warn("Already minimal zoom.")
 
     def on_zoom_reset(self):
         self.zoom = self.conf["zoom_default"]
 
+    def on_mark_all(self, aclass):
+        log.debug("on_mark_all(aclass=%s)", aclass["name"])
+
+    def on_select(self, aclass):
+        log.debug("on_select(aclass=%s)", aclass["name"])
+
+    def on_next(self, event=None):
+        log.debug("on_next()")
+        self.index += self.num_images
+        self.update_grid()
+
+    def on_prev(self, event=None):
+        log.debug("on_prev()")
+        self.index = max(0, self.index - self.num_images)
+        self.update_grid()
+
+    def on_click(self, index):
+        log.debug("on_click(index=%d)", index)
+
+        # update button color
+        self.buttons[index].configure(bg='green')
+        
     def clear_all(self):
-        for button in self.buttons:
+        log.debug("clear_all()")
+        for button in self.buttons.values():
             button.grid_forget()
             button.destroy()
-        self.buttons = []
+        self.buttons = dict()
 
-    def update_ui(self):
+    def update_info(self):
+        log.debug("update_info()")
+
+        text = []
+        text.append("test")
+
+        if self.num_images > 0:
+            text.append("images:{}".format(self.num_images))
+
+        if self.current_class_desc:
+            text.append("select:{}".format(self.current_class_desc["name"]))
+            self.info["bg"] = self.current_class_desc["color"]
+        text.append("zoom:{}".format(self.zoom))
+        self.info_label['text'] = " | ".join(text)
+
+    def update_grid(self):
         # log.debug("update ui size: %s zoom: %f", size, zoom)
         self.clear_all()
 
         # get size of the widget
         widget_width, widget_height = self.widget_size
-        log.debug("ImageGridTk wheight: {} wwidth: {}".format(widget_height, widget_width))
+        log.debug("Widget size w: {} h: {}".format(widget_width, widget_height))
 
         # size of the image
         image_width, image_height = self.imagedb.im_size
+        log.debug("Image size w: {} h: {}".format(image_width, image_height))
 
         # compute number of rows and collumns
-        rows = int(widget_height // (image_height*self.zoom + 2*self.padding + 2*self.border))
-        cols = int(widget_width // (image_width*self.zoom + 2*self.padding + 2*self.border))
+        rows = int(widget_height // (image_height*self.zoom + 2*self.padding + 2*self.border + 5))
+        cols = int(widget_width // (image_width*self.zoom + 2*self.padding + 2*self.border + 5 ))
 
-        log.debug("ImageGridTk rows: {} cols: {}".format(rows, cols))
+        log.debug("Grid size c: {} r: {}".format(cols, rows))
 
+        # cnfigure padding
         for i in range(rows):
             self.rowconfigure(i, pad=self.padding)
 
         for j in range(cols):
             self.columnconfigure(j, pad=self.padding)
 
+        self.num_images = rows * cols
+
+        chunk = self.imagedb.chunk(self.index, self.num_images)
+
+        # create all buttons
+        k = 0
         for i in range(rows):
             for j in range(cols):
-                button = self.add_button(self.imagedb.first_image, zoom=self.zoom)
+                image_path = os.path.join(self.imagedb.base_path, chunk.iloc[k,0])
+                image_class = chunk.iloc[k,1]
+                image_index = self.index + k
+
+                button = self.create_image_button(image_path, index=image_index, zoom=self.zoom)
                 button.grid(row=i, column=j)
-                self.buttons.append(button)
-        self.pack()
+                self.buttons[image_index] = button
+                k += 1
 
-    def add_button(self, imagename, zoom=1):
-        log.debug("Image: %s", imagename)
+        # pack frame
+        self.grid.pack()
 
-        button = tk.Button(self,
+    def create_image_button(self, imagename, index, zoom=1):
+        log.debug("create_image_button(imagename=%s,...)", imagename)
+        button = tk.Button(self.grid,
                            bd=self.border,
                            bg='red3',
                            activebackground="red",
                            relief=tk.FLAT)
 
         button["text"] = imagename
-        button["command"] = lambda : self.click(button)
+        button["command"] = lambda : self.on_click(index)
         image = Image.open(imagename)
 
         if zoom != 1:
@@ -195,8 +315,20 @@ class ImageGridTk(tk.Frame):
         button.photo = photo
         return button
 
-    def click(self, button):
-        button.configure(bg = "green", activebackground="green2")
+    def create_toolbar_button(self, text, cmd=None, key=None, side=tk.RIGHT):
+        log.debug("create_toolbar_button(text=%s,...)", text)
+        button = tk.Button(self.tool)
+        button["text"] = text
+
+        if cmd is not None:
+            button["command"] = cmd
+            log.debug("Register button %s command %s.%s", text, cmd.__module__, cmd.__name__)
+
+            if key:
+                self.master.bind_all(key, cmd)
+                log.debug("Bind %s to %s.%s", key, cmd.__module__, cmd.__name__)
+        button.pack(side=side)
+        return button
 
 
 class KlikatkoApp(tk.Frame):
@@ -210,22 +342,6 @@ class KlikatkoApp(tk.Frame):
     def init_ui(self):
         # main window
         self.master.title("Klikatko")
-
-        # toolbar
-        self.toolbar = tk.Frame(self)
-        self.toolbar.pack(side="top", fill="both", expand=False)
-
-        self.quit = self.add_button(self.toolbar, "Next",
-                                    command=self.on_quit)
-
-        self.test = self.add_button(self.toolbar, "Mark OK",
-                                    command=self.on_test,
-                                    shortcut="<Return>")
-
-        self.test = self.add_button(self.toolbar, "Mark Bad",
-                                    command=self.on_test,
-                                    shortcut="<Return>")
-
         # grid view
         self.grid = ImageGridTk(self.imagedb, self)
         self.grid.pack(fill=tk.BOTH, expand=True)
@@ -259,6 +375,25 @@ class KlikatkoApp(tk.Frame):
         x, y = event.x, event.y
         log.debug('{}, {}'.format(x, y))
         log.debug(str(event))
+
+
+
+def pd_ensure_columns(df, n, val=''):
+    """Ensure number of columns of pandas frame"""
+    M,N = df.shape
+
+    for i in range(n - N):
+        df[:,n+i] = pd.Series([val]*M, index = df.index)
+    return df
+
+def setup_logging(level):
+    log.setLevel(level)
+    formatter = logging.Formatter('%(name)s:%(levelname)s: %(message)s')
+    ch = logging.StreamHandler()
+    ch.setLevel(level)
+    ch.setFormatter(formatter)
+
+    log.addHandler(ch)
 
 
 if __name__ == "__main__":
