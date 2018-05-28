@@ -41,12 +41,16 @@ def main():
     # prepare database
     sampledb = SampleDB(csvfile, 1)
 
+    # gui root
     root = tk.Tk()
 
+    # if fullscreen open in fullscreen otherwise use geometry in conf file
     if opt['--fullscreen']:
         root.geometry("{0}x{1}+0+0".format(root.winfo_screenwidth(), root.winfo_screenheight()))
     else:
         root.geometry(conf["geometry"])
+
+    # initialize the app
     app = KlikatkoApp(sampledb,master=root)
 
     # set quit functions
@@ -107,7 +111,11 @@ class SampleDB(object):
         self.table.iloc[index,column] = value
 
     def write(self):
-        pass
+        self.table.to_csv(self.dbfilename, na_rep='',
+                          sep=self.conf["csv_sep"],
+                          decimal=self.conf["csv_decimal"],
+                          header=False)
+        log.info("Saved to %s", self.dbfilename)
 
     def close(self):
         self.write()
@@ -269,8 +277,13 @@ class ImageGridTk(tk.Frame):
     def on_next(self, event=None):
         log.debug("on_next()")
         self.index += self.num_images
+        self.next_count = += 1
 
         self.store_annotations()
+
+        if self.next_count >= self.save_every:
+            self.next_count
+            self.imagedb.write()
 
         self.update_grid()
         self.update_info()
