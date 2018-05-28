@@ -113,6 +113,13 @@ class SampleDB(object):
         self.write()
         self.dbfile.close()
 
+    def get_first_unannotated(self, column):
+        i = 0
+        while self.table.iloc[i, column] != '':
+            i += 1
+        return i
+
+
 class ImageGridTk(tk.Frame):
 
     def __init__(self, imagedb, master=None):
@@ -147,7 +154,7 @@ class ImageGridTk(tk.Frame):
         self.next_count = 0
 
         # position of the first grid image in the imagedb
-        self.index = 0
+        self.index = self.imagedb.get_first_unannotated(self.column_out)
 
         # number of images in the grid view, will be updated by update_ui()
         self.num_images = 0
@@ -264,8 +271,6 @@ class ImageGridTk(tk.Frame):
         self.index += self.num_images
 
         self.store_annotations()
-
-        
 
         self.update_grid()
         self.update_info()
