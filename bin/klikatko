@@ -117,24 +117,45 @@ class ImageGridTk(tk.Frame):
 
     def __init__(self, imagedb, master=None):
         super().__init__(master, bg='black')
+
+        # configuration values
         self.conf = Config()
+        self.zoom = self.conf["zoom_default"]
+        self.border = self.conf["image_border"]
+        self.padding = self.conf["image_padding"]
+        self.save_every = self.conf["save_every"]
         self.column_path = self.conf["column_path"]
         self.column_in   = self.conf["column_in"]
         self.column_out  = self.conf["column_out"]
 
+        # image db
         self.imagedb = imagedb
-        self.buttons = dict()
-        self.classes = dict()
-        self.bind("<Configure>", self.on_configure)
 
-        self.zoom = self.conf["zoom_default"]
-        self.border = self.conf["image_border"]
-        self.padding = self.conf["image_padding"]
+        # button by index in the imagedb
+        self.buttons = dict()
+
+        # class value by index in the imagedb
+        self.classes = dict()
+
+        # description of the current cass, used when clicked on an image
         self.current_class_desc = None
+
+        # description of default class
         self.default_class_desc = None
 
+        # number of clicks on next button, used to save the list every n click
+        self.next_count = 0
+
+        # position of the first grid image in the imagedb
         self.index = 0
+
+        # number of images in the grid view, will be updated by update_ui()
         self.num_images = 0
+
+        # bind configure event, to update the image grid
+        self.bind("<Configure>", self.on_configure)
+
+        # initialize user interface
         self.init_ui()
 
 
@@ -244,6 +265,8 @@ class ImageGridTk(tk.Frame):
 
         self.store_annotations()
 
+        
+
         self.update_grid()
         self.update_info()
 
@@ -289,16 +312,16 @@ class ImageGridTk(tk.Frame):
 
         text = []
 
-        text.append("index:{}".format(self.index))
+        text.append("index: {}".format(self.index))
 
         if self.num_images > 0:
-            text.append("images:{}".format(self.num_images))
+            text.append("images: {}".format(self.num_images))
 
         if self.current_class_desc:
-            text.append("select:{}".format(self.current_class_desc["name"]))
+            text.append("select: {}".format(self.current_class_desc["name"]))
             self.info["bg"] = self.current_class_desc["color"]
             self.info_label["bg"] = self.current_class_desc["color"]
-        text.append("zoom:{}".format(self.zoom))
+        text.append("zoom: {}".format(self.zoom))
 
         self.info_label['text'] = " | ".join(text)
 

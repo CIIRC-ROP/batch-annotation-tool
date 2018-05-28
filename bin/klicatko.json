@@ -1,5 +1,8 @@
 {
 
+    // Global options
+    "base_dir":"",      // Dire to prepend before paths
+
     // User interface
     "zoom_default":0.2, // Default image zoom when the app starts
     "zoom_min":0.1,     // Minimal image zoom
@@ -14,9 +17,10 @@
     "csv_sep":";",      // Column separator for cvs parsing
     "csv_decimal":".",  // Decimal separator for cvs parsing
     "column_path":0,    // Column of the image path, starting from 0
-    "column_in":1,      // Input columnt for annotation, -1 for none
-    "column_out":2,     // Output column for annotation
+    "column_in":1,      // Input column for annotation, -1 for none
+    "column_out":1,     // Output column for annotation
     "defaul_class":1,   // Value of the default class
+    "save_every":10,    // Save the annotaion file every n clicks on next button
 
     // Annotation
     "classes":[
