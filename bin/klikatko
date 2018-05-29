@@ -17,6 +17,7 @@ from klikatko import Config
 
 from PIL import Image, ImageTk
 from docopt import docopt
+from itertools import product, islice
 import numpy as np
 import tkinter as tk
 from tkinter import ttk
@@ -86,7 +87,9 @@ class SampleDB(object):
                                  decimal=self.conf["csv_decimal"],
                                  header=None)
 
-        self.table = pd_ensure_columns(self.table, max(self.column_in, self.column_out))
+        self.table = pd_ensure_columns(self.table, max(self.column_in, self.column_out)+1)
+        self.N = self.table.shape[0]
+        log.debug("DB shape: %s", str(self.table.shape))
 
     def get_image_size(self):
         if self.im_size is None:
@@ -103,7 +106,8 @@ class SampleDB(object):
         return self.im_size
 
     def chunk(self, start, n):
-        end = start + n
+        log.debug("chunk(start=%d, n=%d)", start, n)
+        end = min(start + n, self.N)
         chunk = self.table.iloc[start:end]
         return chunk
 
@@ -114,7 +118,9 @@ class SampleDB(object):
         self.table.to_csv(self.dbfilename, na_rep='',
                           sep=self.conf["csv_sep"],
                           decimal=self.conf["csv_decimal"],
-                          header=False)
+                          header=False,
+                          index=False,
+                          float_format=self.conf["float_format"])
         log.info("Saved to %s", self.dbfilename)
 
     def close(self):
@@ -122,8 +128,9 @@ class SampleDB(object):
         self.dbfile.close()
 
     def get_first_unannotated(self, column):
+        log.debug("get_first_unannotated(column=%d)", column)
         i = 0
-        while self.table.iloc[i, column] != '':
+        while not ( i >= self.N or np.isnan(self.table.iloc[i, column])):
             i += 1
         return i
 
@@ -175,7 +182,6 @@ class ImageGridTk(tk.Frame):
 
 
     def init_ui(self):
-
         # initialize toolbar frame and its content
         self.tool = tk.Frame(self)
 
@@ -211,6 +217,7 @@ class ImageGridTk(tk.Frame):
 
         # initialize grid
         self.grid = tk.Frame(self)
+        self.grid['bg'] = self.conf['background']
 
         # initialize info line
         self.info = tk.Frame(self)
@@ -277,7 +284,7 @@ class ImageGridTk(tk.Frame):
     def on_next(self, event=None):
         log.debug("on_next()")
         self.index += self.num_images
-        self.next_count = += 1
+        self.next_count += 1
 
         self.store_annotations()
 
@@ -374,27 +381,26 @@ class ImageGridTk(tk.Frame):
 
         # create all buttons
         k = 0
-        for i in range(rows):
-            for j in range(cols):
-                image_path = os.path.join(self.imagedb.base_path, chunk.iloc[k,0])
-                image_index = self.index + k
+        for i,j in islice(product(range(rows), range(cols)), len(chunk)):
+            image_path = os.path.join(self.imagedb.base_path, chunk.iloc[k,0])
+            image_index = self.index + k
 
 
-                if not np.isnan(chunk.iloc[k,self.column_out]):
-                    cdesc = self.class_descs[chunk.iloc[k,self.column_out]]
-                elif not np.isnan(chunk.iloc[k,self.column_in]):
-                    cdesc = self.class_descs[chunk.iloc[k,self.column_in]]
-                else:
-                    cdesc = self.default_class_desc
+            if not np.isnan(chunk.iloc[k,self.column_out]):
+                cdesc = self.class_descs[chunk.iloc[k,self.column_out]]
+            elif not np.isnan(chunk.iloc[k,self.column_in]):
+                cdesc = self.class_descs[chunk.iloc[k,self.column_in]]
+            else:
+                cdesc = self.default_class_desc
 
-                self.classes[image_index] = cdesc['value']
-                button = self.create_image_button(image_path,
-                                                  index=image_index,
-                                                  zoom=self.zoom,
-                                                  cdesc=cdesc)
-                button.grid(row=i, column=j)
-                self.buttons[image_index] = button
-                k += 1
+            self.classes[image_index] = cdesc['value']
+            button = self.create_image_button(image_path,
+                                              index=image_index,
+                                              zoom=self.zoom,
+                                              cdesc=cdesc)
+            button.grid(row=i, column=j)
+            self.buttons[image_index] = button
+            k += 1
 
         # pack frame
         self.grid.pack()
@@ -469,6 +475,7 @@ class KlikatkoApp(tk.Frame):
 
     def on_quit(self, event=None):
         log.info("Quiting")
+        self.imagedb.write()
         self.master.destroy()
 
     def on_test(self, event=None):
@@ -481,12 +488,14 @@ class KlikatkoApp(tk.Frame):
 
 
 
-def pd_ensure_columns(df, n, val=''):
+def pd_ensure_columns(df, n, val=np.nan):
     """Ensure number of columns of pandas frame"""
+    log.debug("pd_ensure_columns(df, n=%d, val=%s)", n, str(val))
     M,N = df.shape
 
     for i in range(n - N):
-        df[:,n+i] = pd.Series([val]*M, index = df.index)
+        df[n+i] = val
+
     return df
 
 def setup_logging(level):
