@@ -5,12 +5,33 @@
 - Images read from csv file
 - Configuration read from JSON file
 
-## Requirements
+## Requirements and Installation
 
-- [Python 3.X](https://www.python.org)
-- [TKinter](https://docs.python.org/3.6/library/tkinter.html), GUI library,  part of standard python library.
-- [pandas](https://pandas.pydata.org/), for fast csv processing.
-- [pillow](http://python-pillow.org/), image processing.
+### Requirements
+
+ - [Python 3.X](https://www.python.org)
+ - [TKinter](https://docs.python.org/3.6/library/tkinter.html), GUI library,  part of standard python library.
+ - [pandas](https://pandas.pydata.org/), for faster csv processing.
+ - [pillow](http://python-pillow.org/), image processing.
+
+### Installation (Linux)
+
+
+From source
+```shell
+$ git clone git@gitlab.ciirc.cvut.cz:b635/annotation_tools.git
+# or
+$ git clone http://gitlab.ciirc.cvut.cz/b635/annotation_tools.git
+$ cd annotation_tools
+$ pip3 install . # normal installation
+# or
+$ pip3 install -e . # for development
+```
+
+Directly from git
+``` shell
+pip3 install git+http://gitlab.ciirc.cvut.cz:b635/annotation_tools.git
+```
 
 ## Usage
 
