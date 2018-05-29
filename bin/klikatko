@@ -4,6 +4,7 @@
 
 Usage:
   klikatko -h | --help
+  klikatko [options]
   klikatko [options] <csvfile>
 
 Options:
@@ -20,7 +21,7 @@ from docopt import docopt
 from itertools import product, islice
 import numpy as np
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog
 import logging
 import pandas as pd
 import os
@@ -31,7 +32,6 @@ log = logging.getLogger("Klikatko")
 
 def main():
     opt = docopt(__doc__)
-    csvfile = opt["<csvfile>"]
 
     # setup logging
     setup_logging(level = "DEBUG" if opt["--debug"] else "INFO")
@@ -39,11 +39,17 @@ def main():
     # initialize config
     conf = Config(opt["--config"])
 
-    # prepare database
-    sampledb = SampleDB(csvfile, 1)
-
     # gui root
     root = tk.Tk()
+
+    # process input file
+    if opt["<csvfile>"] is None:
+        csvfile = filedialog.askopenfilename(title = "Select file",filetypes = (("CSV files","*.csv"),))
+    else:
+        csvfile = opt["<csvfile>"]
+
+    # prepare database
+    sampledb = SampleDB(csvfile, 1)
 
     # if fullscreen open in fullscreen otherwise use geometry in conf file
     if opt['--fullscreen']:

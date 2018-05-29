@@ -7,6 +7,8 @@
 
 ## Requirements and Installation
 
+- Tested on Ubuntu 16.04, Windows (with anaconda)
+
 ### Requirements
 
  - [Python 3.X](https://www.python.org)
@@ -14,7 +16,7 @@
  - [pandas](https://pandas.pydata.org/), for faster csv processing.
  - [pillow](http://python-pillow.org/), image processing.
 
-### Installation (Linux)
+### Installation (Linux, Windows, MacOS)
 
 
 From source
