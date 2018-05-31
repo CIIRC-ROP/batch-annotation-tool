@@ -114,3 +114,8 @@ $ klikatko -h
 - [Pyton vs MATLAB](https://blog.mide.com/matlab-vs-python-speed-for-vibration-analysis-free-download), read speed of csv.
 - [TKinter: Two Frames Stacked](https://stackoverflow.com/questions/7546050/switch-between-two-frames-in-tkinter)
 - [atexit](https://docs.python.org/3.6/library/atexit.html), library for handling closing of the application.
+
+## Generating windows exe
+
+- using pyinstaller
+- 
