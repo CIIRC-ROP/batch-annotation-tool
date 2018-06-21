@@ -35,10 +35,16 @@ Directly from git
 pip3 install git+http://gitlab.ciirc.cvut.cz:b635/annotation_tools.git
 ```
 
-## Usage
+## Usage (Linux)
 
 ``` shell
 $ klikatko -h
+```
+
+## Usage (Windows binary)
+
+```
+$ klikatko.exe -h
 ```
 
 ## Configuration file
