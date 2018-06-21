@@ -265,8 +265,8 @@ class ImageGridTk(tk.Frame):
 
     def on_zoom_in(self, event=None):
         log.debug("on_zoom_in() current zoom: %f", self.zoom)
-        if self.zoom + self.conf["zoom_step"] <= self.conf["zoom_max"]:
-            self.zoom += self.conf["zoom_step"]
+        if self.zoom * self.conf["zoom_step"] <= self.conf["zoom_max"]:
+            self.zoom *= self.conf["zoom_step"]
             self.update_grid()
             self.update_info()
         else:
@@ -274,8 +274,8 @@ class ImageGridTk(tk.Frame):
 
     def on_zoom_out(self, event=None):
         log.debug("on_zoom_out() current zoom: %f", self.zoom)
-        if self.zoom - self.conf["zoom_step"] >= self.conf["zoom_min"]:
-            self.zoom -= self.conf["zoom_step"]
+        if self.zoom / self.conf["zoom_step"] >= self.conf["zoom_min"]:
+            self.zoom /= self.conf["zoom_step"]
             self.update_grid()
             self.update_info()
         else:
@@ -371,7 +371,7 @@ class ImageGridTk(tk.Frame):
             text.append("select: {}".format(self.current_class_desc["name"]))
             self.info["bg"] = self.current_class_desc["color"]
             self.info_label["bg"] = self.current_class_desc["color"]
-        text.append("zoom: {:2.5f}".format(self.zoom))
+        text.append("zoom: {:1.3f}".format(self.zoom))
 
         if self.last_pressed is not None:
             text.append("last: {}".format(self.last_pressed))
