@@ -9,7 +9,7 @@ Usage:
 
 Options:
   -h, --help
-  --config CONFIG    Specifi config file [default: klikatko.json]
+  --config CONFIG    Specifi config file
   --debug            Run in debug mode
   --fullscreen       Display in fullscreen
 """
@@ -37,6 +37,8 @@ def main():
     setup_logging(level = "DEBUG" if opt["--debug"] else "INFO")
 
     # initialize config
+    if opt["--config"] is None:
+        opt["--config"] = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'klikatko.json')
     conf = Config(opt["--config"])
 
     # gui root
@@ -295,7 +297,7 @@ class ImageGridTk(tk.Frame):
         self.store_annotations()
 
         if self.next_count >= self.save_every:
-            self.next_count
+            self.next_count = 0
             self.imagedb.write()
 
         self.update_grid()
