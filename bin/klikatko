@@ -263,7 +263,7 @@ class ImageGridTk(tk.Frame):
         self.update_grid()
         self.update_info()
 
-    def on_zoom_in(self):
+    def on_zoom_in(self, event=None):
         log.debug("on_zoom_in() current zoom: %f", self.zoom)
         if self.zoom + self.conf["zoom_step"] <= self.conf["zoom_max"]:
             self.zoom += self.conf["zoom_step"]
@@ -272,7 +272,7 @@ class ImageGridTk(tk.Frame):
         else:
             log.warn("Already maximal zoom.")
 
-    def on_zoom_out(self):
+    def on_zoom_out(self, event=None):
         log.debug("on_zoom_out() current zoom: %f", self.zoom)
         if self.zoom - self.conf["zoom_step"] >= self.conf["zoom_min"]:
             self.zoom -= self.conf["zoom_step"]
