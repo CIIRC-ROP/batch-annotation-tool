@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 from distutils.core import setup
-import py2exe
 
 setup(name='klikatko',
       version='0.1',
@@ -15,7 +14,6 @@ setup(name='klikatko',
           'docopt',
           'numpy',
           'pandas',
-          'tkinter'
       ],
       console=['bin/klikatko'],
      )
