@@ -47,6 +47,7 @@ The binnary is on grid `/mnt/projects/csbeton/annotation_tools/dist` along with 
 
 ```
 $ klikatko.exe -h
+$ klikatko.exe ../data/test.csv
 ```
 
 ## Configuration file
