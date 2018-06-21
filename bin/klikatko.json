@@ -6,7 +6,7 @@
     // User interface
     "zoom_default":1.0, // Default image zoom when the app starts
     "zoom_min":0.1,     // Minimal image zoom
-    "zoom_max":1.2,     // Maximal image zoom
+    "zoom_max":8.0,     // Maximal image zoom
     "zoom_step":0.1,    // Zoom step for zoom in and zoom out
     "image_border":2,   // Size of the color border of the image
     "image_padding":2,  // Space between images
