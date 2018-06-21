@@ -43,6 +43,8 @@ $ klikatko -h
 
 ## Usage (Windows binary)
 
+The binnary is on grid `/mnt/projects/csbeton/annotation_tools/dist` along with sample input (`../data`) and config files.
+
 ```
 $ klikatko.exe -h
 ```
