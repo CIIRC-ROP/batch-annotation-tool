@@ -124,6 +124,14 @@ $ klikatko.exe ../data/test.csv
 - [TKinter: Two Frames Stacked](https://stackoverflow.com/questions/7546050/switch-between-two-frames-in-tkinter)
 - [atexit](https://docs.python.org/3.6/library/atexit.html), library for handling closing of the application.
 
+## TODOs
+
+ - [x] Show name of the last clicked file
+ - [ ] Copy name of the last clicked file into clipboard
+ - [x] Key Shortcuts
+ - [x] Fix next when no more images
+ - [ ] Multiple keys for single action
+
 ## Generating windows exe
 
 - using pyinstaller

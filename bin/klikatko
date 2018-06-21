@@ -35,10 +35,12 @@ def main():
 
     # setup logging
     setup_logging(level = "DEBUG" if opt["--debug"] else "INFO")
+    log.debug("Command line options:\n%s", str(opt))
 
     # initialize config
     if opt["--config"] is None:
         opt["--config"] = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'klikatko.json')
+        log.debug("Lookin for config in %s", opt['--config'])
     conf = Config(opt["--config"])
 
     # gui root
@@ -182,6 +184,9 @@ class ImageGridTk(tk.Frame):
         # number of images in the grid view, will be updated by update_ui()
         self.num_images = 0
 
+        # last pressed image name
+        self.last_pressed = None
+
         # bind configure event, to update the image grid
         self.bind("<Configure>", self.on_configure)
 
@@ -205,21 +210,23 @@ class ImageGridTk(tk.Frame):
 
         # next prev button
 
-        self.bt_next = self.create_toolbar_button("Prev",
-                                                  key="<Return>",
+        self.bt_prev = self.create_toolbar_button("Prev",
+                                                  key=self.conf.get("key_prev", None),
                                                   cmd=self.on_prev,
                                                   side=tk.LEFT)
         self.bt_next = self.create_toolbar_button("Next",
-                                                  key="<Return>",
+                                                  key=self.conf.get("key_next", None),
                                                   cmd=self.on_next,
                                                   side=tk.LEFT)
 
 
         self.bt_zoom_in = self.create_toolbar_button("+",
+                                                     key=self.conf.get("key_zoom_in", None),
                                                      cmd=self.on_zoom_in,
                                                      side=tk.RIGHT)
 
         self.bt_zoom_out = self.create_toolbar_button("-",
+                                                      key=self.conf.get("key_zoom_out", None),
                                                       cmd=self.on_zoom_out,
                                                       side=tk.RIGHT)
 
@@ -291,9 +298,12 @@ class ImageGridTk(tk.Frame):
 
     def on_next(self, event=None):
         log.debug("on_next()")
-        self.index += self.num_images
-        self.next_count += 1
+        if self.index + self.num_images > self.imagedb.N:
+            log.debug("End of file!")
+        else:
+            self.index += self.num_images
 
+        self.next_count += 1
         self.store_annotations()
 
         if self.next_count >= self.save_every:
@@ -316,7 +326,14 @@ class ImageGridTk(tk.Frame):
             log.warn("No active class")
             return
 
+        # store last pressed image
+        self.last_pressed = self.buttons[index]['text']
+
+        # annotate image
         self.annotate(index, self.current_class_desc)
+
+        # update info to show last pressed
+        self.update_info()
 
     def store_annotations(self):
         # store annotations
@@ -354,7 +371,10 @@ class ImageGridTk(tk.Frame):
             text.append("select: {}".format(self.current_class_desc["name"]))
             self.info["bg"] = self.current_class_desc["color"]
             self.info_label["bg"] = self.current_class_desc["color"]
-        text.append("zoom: {}".format(self.zoom))
+        text.append("zoom: {:2.5f}".format(self.zoom))
+
+        if self.last_pressed is not None:
+            text.append("last: {}".format(self.last_pressed))
 
         self.info_label['text'] = " | ".join(text)
 
@@ -386,6 +406,10 @@ class ImageGridTk(tk.Frame):
         self.num_images = rows * cols
 
         chunk = self.imagedb.chunk(self.index, self.num_images)
+
+        if len(chunk) <= 0:
+            log.warning("No images!")
+            return
 
         # create all buttons
         k = 0
