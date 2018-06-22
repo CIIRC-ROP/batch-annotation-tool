@@ -326,20 +326,20 @@ class ImageGridTk(tk.Frame):
         self.update_info()
 
     def on_click(self, index):
-        log.debug("on_click(index=%d)", index)
+        log.debug("on_click(index=%d, img=%s)", index, self.buttons[index]['text'])
+
+        # store last pressed image
+        self.last_pressed = self.buttons[index]['text']
+
+        # update info to show last pressed
+        self.update_info()
 
         if self.current_class_desc is None:
             log.warn("No active class")
             return
 
-        # store last pressed image
-        self.last_pressed = self.buttons[index]['text']
-
         # annotate image
         self.annotate(index, self.current_class_desc)
-
-        # update info to show last pressed
-        self.update_info()
 
     def on_clipboard(self, event=None):
         log.debug("on_clipboard()")
