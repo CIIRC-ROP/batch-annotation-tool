@@ -19,7 +19,6 @@
     "column_path":0,    // Column of the image path, starting from 0
     "column_in":1,      // Input column for annotation, -1 for none
     "column_out":2,     // Output column for annotation
-    "defaul_class":1,   // Value of the default class
     "save_every":10,    // Save the annotaion file every n clicks on next button
     "float_format":"%.0f", // Ints are also stored as float
 
@@ -28,6 +27,7 @@
     "key_prev":"<Left>",
     "key_zoom_in":"<KP_Add>",
     "key_zoom_out":"<KP_Subtract>",
+    "key_clipboard":"<Control-c>",
 
     // Annotation
     "classes":[
@@ -35,6 +35,7 @@
 	    "name":"ok",                // Name of the class
 	    "value":1,                  // Value that is used to represent a class
 	    "default":true,             // Select default class
+	    "current":false,            // Start with this class if true
 	    "color":"green",            // Color used to mark this class
 	    "button_all":{              // Optional: Button to mark all visible images by this class
 		"text":"All ok",        //           Text of the button
@@ -49,7 +50,7 @@
 	{
 	    "name":"bad",
 	    "value":254,
-	    "default":false,
+	    "current":true,
 	    "color":"red",
 	    "button_all":{
 		"text":"All bad",
