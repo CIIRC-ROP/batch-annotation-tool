@@ -37,6 +37,8 @@ pip3 install git+http://gitlab.ciirc.cvut.cz:b635/annotation_tools.git
 
 ## Usage (Linux)
 
+- See the [User Guide](user_guide.md)
+
 ``` shell
 $ klikatko -h
 ```
