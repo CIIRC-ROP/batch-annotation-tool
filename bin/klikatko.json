@@ -24,6 +24,7 @@
 
     // keys see http://infohost.nmt.edu/tcc/help/pubs/tkinter/web/key-names.html
     "key_next":"<Right>",
+    "key_next_and_save":"<Return>",
     "key_prev":"<Left>",
     "key_zoom_in":"<KP_Add>",
     "key_zoom_out":"<KP_Subtract>",

@@ -34,7 +34,7 @@ def main():
     opt = docopt(__doc__)
 
     # setup logging
-    setup_logging(level = "DEBUG" if opt["--debug"] else "INFO")
+    setup_logging(level="DEBUG" if opt["--debug"] else "INFO")
     log.debug("Command line options:\n%s", str(opt))
 
     # initialize config
@@ -62,7 +62,7 @@ def main():
         root.geometry(conf["geometry"])
 
     # initialize the app
-    app = KlikatkoApp(sampledb,master=root)
+    app = KlikatkoApp(sampledb, master=root)
 
     # set quit functions
     root.protocol("WM_DELETE_WINDOW", app.on_quit)
@@ -88,8 +88,8 @@ class SampleDB(object):
         # config
         self.conf = Config()
         self.column_path = self.conf["column_path"]
-        self.column_in   = self.conf["column_in"]
-        self.column_out  = self.conf["column_out"]
+        self.column_in = self.conf["column_in"]
+        self.column_out = self.conf["column_out"]
 
         # table of paths and annotations
         self.table = pd.read_csv(self.dbfilename,
@@ -122,7 +122,7 @@ class SampleDB(object):
         return chunk
 
     def annotate(self, index, value, column):
-        self.table.iloc[index,column] = value
+        self.table.iloc[index, column] = value
 
     def write(self):
         self.table.to_csv(self.dbfilename, na_rep='',
@@ -140,7 +140,7 @@ class SampleDB(object):
     def get_first_unannotated(self, column):
         log.debug("get_first_unannotated(column=%d)", column)
         i = 0
-        while not ( i >= self.N or np.isnan(self.table.iloc[i, column])):
+        while not (i >= self.N or np.isnan(self.table.iloc[i, column])):
             i += 1
         return i
 
@@ -157,8 +157,8 @@ class ImageGridTk(tk.Frame):
         self.padding = self.conf["image_padding"]
         self.save_every = self.conf["save_every"]
         self.column_path = self.conf["column_path"]
-        self.column_in   = self.conf["column_in"]
-        self.column_out  = self.conf["column_out"]
+        self.column_in = self.conf["column_in"]
+        self.column_out = self.conf["column_out"]
 
         # image db
         self.imagedb = imagedb
@@ -198,7 +198,6 @@ class ImageGridTk(tk.Frame):
         # initialize user interface
         self.init_ui()
 
-
     def init_ui(self):
         # initialize toolbar frame and its content
         self.tool = tk.Frame(self)
@@ -213,18 +212,21 @@ class ImageGridTk(tk.Frame):
             elif cdesc.get('current', False):
                 self.current_class_desc = cdesc
 
-
         # next prev button
-
         self.bt_prev = self.create_toolbar_button("Prev",
                                                   key=self.conf.get("key_prev", None),
                                                   cmd=self.on_prev,
                                                   side=tk.LEFT)
+        
         self.bt_next = self.create_toolbar_button("Next",
                                                   key=self.conf.get("key_next", None),
                                                   cmd=self.on_next,
                                                   side=tk.LEFT)
 
+        self.bt_next = self.create_toolbar_button("Next and save",
+                                                  key=self.conf.get("key_next_and_save", None),
+                                                  cmd=self.on_next_and_save,
+                                                  side=tk.LEFT)
 
         self.bt_zoom_in = self.create_toolbar_button("+",
                                                      key=self.conf.get("key_zoom_in", None),
@@ -254,14 +256,13 @@ class ImageGridTk(tk.Frame):
     def init_class(self, desc):
         if "button_all" in desc:
             button = self.create_toolbar_button(**desc["button_all"],
-                                             cmd=lambda: self.on_mark_all(desc))
+                                                cmd=lambda: self.on_mark_all(desc))
             button.pack(side=tk.LEFT)
 
         if "button_select" in desc:
             button = self.create_toolbar_button(**desc["button_select"],
-                                             cmd=lambda: self.on_select(desc))
+                                                cmd=lambda: self.on_select(desc))
             button.pack(side=tk.LEFT)
-
 
     def on_configure(self, event):
         log.debug("Configure event: %d, %d", event.width, event.height)
@@ -304,10 +305,17 @@ class ImageGridTk(tk.Frame):
 
     def on_next(self, event=None):
         log.debug("on_next()")
+
         if self.index + self.num_images > self.imagedb.N:
             log.debug("End of file!")
         else:
             self.index += self.num_images
+
+        self.update_grid()
+        self.update_info()
+
+    def on_next_and_save(self, event=None):
+        log.debug("on_next_and_save()")
 
         self.next_count += 1
         self.store_annotations()
@@ -316,8 +324,7 @@ class ImageGridTk(tk.Frame):
             self.next_count = 0
             self.imagedb.write()
 
-        self.update_grid()
-        self.update_info()
+        self.on_next()
 
     def on_prev(self, event=None):
         log.debug("on_prev()")
@@ -403,7 +410,7 @@ class ImageGridTk(tk.Frame):
 
         # compute number of rows and collumns
         rows = int(widget_height // (image_height*self.zoom + 2*self.padding + 2*self.border + 5))
-        cols = int(widget_width // (image_width*self.zoom + 2*self.padding + 2*self.border + 5 ))
+        cols = int(widget_width // (image_width*self.zoom + 2*self.padding + 2*self.border + 5))
 
         log.debug("Grid size c: {} r: {}".format(cols, rows))
 
@@ -425,14 +432,13 @@ class ImageGridTk(tk.Frame):
         # create all buttons
         k = 0
         for i,j in islice(product(range(rows), range(cols)), len(chunk)):
-            image_path = os.path.join(self.imagedb.base_path, chunk.iloc[k,0])
+            image_path = os.path.join(self.imagedb.base_path, chunk.iloc[k, 0])
             image_index = self.index + k
 
-
-            if not np.isnan(chunk.iloc[k,self.column_out]):
-                cdesc = self.class_descs[chunk.iloc[k,self.column_out]]
-            elif not np.isnan(chunk.iloc[k,self.column_in]):
-                cdesc = self.class_descs[chunk.iloc[k,self.column_in]]
+            if not np.isnan(chunk.iloc[k, self.column_out]):
+                cdesc = self.class_descs[chunk.iloc[k, self.column_out]]
+            elif not np.isnan(chunk.iloc[k, self.column_in]):
+                cdesc = self.class_descs[chunk.iloc[k, self.column_in]]
             else:
                 cdesc = self.default_class_desc
 
@@ -457,7 +463,7 @@ class ImageGridTk(tk.Frame):
                            relief=tk.FLAT)
 
         button["text"] = imagename
-        button["command"] = lambda : self.on_click(index)
+        button["command"] = lambda: self.on_click(index)
         image = Image.open(imagename)
 
         if zoom != 1:
@@ -524,22 +530,22 @@ class KlikatkoApp(tk.Frame):
     def on_test(self, event=None):
         log.debug("Received test event: %s", str(event))
 
-    def on_mouse_motion(self,event):
+    def on_mouse_motion(self, event):
         x, y = event.x, event.y
         log.debug('{}, {}'.format(x, y))
         log.debug(str(event))
 
 
-
 def pd_ensure_columns(df, n, val=np.nan):
     """Ensure number of columns of pandas frame"""
     log.debug("pd_ensure_columns(df, n=%d, val=%s)", n, str(val))
-    M,N = df.shape
+    M, N = df.shape
 
     for i in range(n - N):
         df[n+i] = val
 
     return df
+
 
 def setup_logging(level):
     log.setLevel(level)
