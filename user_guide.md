@@ -46,4 +46,4 @@ $ bin/klikatko # Will show file open dialog
   - **images** - number of images in the set i.e. visible images
   - **select** - shows which class (ok, bad) are being selected
   - **zoom** - current zoom level
-  - **last** - path to the last clicked image
+  - **last** - path to the last clicked image, is can be copied into clipboard using `C-c`
