@@ -5,7 +5,7 @@
 Usage:
   klikatko -h | --help
   klikatko [options]
-  klikatko [options] <csvfile>
+  klikatko [options] <imfile> <attfile> <outfile>
 
 Options:
   -h, --help
@@ -25,6 +25,9 @@ from tkinter import ttk, filedialog
 import logging
 import pandas as pd
 import os
+
+import sqlite3 as sqlite
+import io
 
 # main logger
 log = logging.getLogger("Klikatko")
@@ -46,14 +49,8 @@ def main():
     # gui root
     root = tk.Tk()
 
-    # process input file
-    if opt["<csvfile>"] is None:
-        csvfile = filedialog.askopenfilename(title = "Select file",filetypes = (("CSV files","*.csv"),))
-    else:
-        csvfile = opt["<csvfile>"]
-
     # prepare database
-    sampledb = SampleDB(csvfile, 1)
+    sampledb = SQLiteDB(opt['<imfile>'], opt['<attfile>'], opt['<outfile>'], 'backpack')
 
     # if fullscreen open in fullscreen otherwise use geometry in conf file
     if opt['--fullscreen']:
@@ -69,6 +66,59 @@ def main():
 
     # run main loop
     app.mainloop()
+
+
+def dict_factory(cursor, row):
+    d = {}
+    for idx, col in enumerate(cursor.description):
+        d[col[0]] = row[idx]
+    return d
+
+
+class SQLiteDB(object):
+
+    def __init__(self, imdbpath, attdbpath, outpath, attname):
+        self.con_img = sqlite.connect(imdbpath)
+        self.con_img.row_factory = dict_factory
+        self.con_att = sqlite.connect(attdbpath)
+        self.con_att.row_factory = dict_factory
+        self.cur_img = self.con_img.cursor()
+        self.cur_att = self.con_att.cursor()
+
+        self.img_table = 'test_images'
+        self.att_table = 'test_attributes'
+        self.attname = attname
+        self.im_size = [100, 40]
+
+        self.con_out = sqlite.connect(outpath)
+        self.cur_out = self.con_out.cursor()
+
+    def get_image_size(self):
+        return self.im_size
+
+    def close(self):
+        self.con_img.close()
+        self.con_att.close()
+
+    def get_first_unannotated(self, column=None):
+        item = self.cur_att.execute('SELECT id FROM {} WHERE {}>=0'.format(self.att_table, self.attname)).fetchone()
+        return item['id']
+
+    def chunk(self, start, n):
+        chunk = self.cur_att.execute('SELECT id, ? FROM {} WHERE id>=? AND id<?'.format(self.att_table), (self.attname, start, start+n)).fetchall()
+        return chunk
+
+    def annotate(self, iid, value, column=None):
+        self.cur_att.execute('UPDATE ? SET ?=? WHERE id=?', (self.att_table, self.attname, value, iid))
+
+    def imread(self, iid):
+        sample = self.con_img.execute('SELECT * FROM {} WHERE id=?'.format(self.img_table), (iid,)).fetchone()
+        image = Image.open(io.BytesIO(sample['blob']))
+        image.thumbnail(self.im_size)
+        return image
+
+    def write(self):
+        pass
 
 
 class SampleDB(object):
@@ -156,9 +206,9 @@ class ImageGridTk(tk.Frame):
         self.border = self.conf["image_border"]
         self.padding = self.conf["image_padding"]
         self.save_every = self.conf["save_every"]
-        self.column_path = self.conf["column_path"]
-        self.column_in = self.conf["column_in"]
-        self.column_out = self.conf["column_out"]
+        self.column_out = None
+        self.column_in = None
+        self.column_path = None
 
         # image db
         self.imagedb = imagedb
@@ -432,19 +482,11 @@ class ImageGridTk(tk.Frame):
         # create all buttons
         k = 0
         for i,j in islice(product(range(rows), range(cols)), len(chunk)):
-            image_path = os.path.join(self.imagedb.base_path, chunk.iloc[k, 0])
             image_index = self.index + k
 
-            if not np.isnan(chunk.iloc[k, self.column_out]):
-                cdesc = self.class_descs[chunk.iloc[k, self.column_out]]
-            elif not np.isnan(chunk.iloc[k, self.column_in]):
-                cdesc = self.class_descs[chunk.iloc[k, self.column_in]]
-            else:
-                cdesc = self.default_class_desc
-
+            cdesc = self.default_class_desc
             self.classes[image_index] = cdesc['value']
-            button = self.create_image_button(image_path,
-                                              index=image_index,
+            button = self.create_image_button(index=image_index,
                                               zoom=self.zoom,
                                               cdesc=cdesc)
             button.grid(row=i, column=j)
@@ -454,17 +496,17 @@ class ImageGridTk(tk.Frame):
         # pack frame
         self.grid.pack()
 
-    def create_image_button(self, imagename, index, cdesc, zoom=1):
-        log.debug("create_image_button(imagename=%s,...)", imagename)
+    def create_image_button(self, index, cdesc, zoom=1):
+        log.debug("create_image_button(index=%d,...)", index)
         button = tk.Button(self.grid,
                            bd=self.border,
                            bg=cdesc['color'],
                            activebackground=cdesc['color'],
                            relief=tk.FLAT)
 
-        button["text"] = imagename
+        button["text"] = str(index)
         button["command"] = lambda: self.on_click(index)
-        image = Image.open(imagename)
+        image = self.imagedb.imread(index)
 
         if zoom != 1:
             image = image.resize((int(image.size[0]*zoom),int(image.size[1]*zoom)))
