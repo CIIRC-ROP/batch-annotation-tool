@@ -33,34 +33,48 @@
     // Annotation
     "classes":[
 	{
-	    "name":"ok",                // Name of the class
-	    "value":1,                  // Value that is used to represent a class
-	    "default":true,             // Select default class
-	    "current":false,            // Start with this class if true
+	    "name":"yes",                // Name of the class
+	    "value":2,                  // Value that is used to represent a class
+	    "current":true,            // Start with this class if true
 	    "color":"green",            // Color used to mark this class
 	    "button_all":{              // Optional: Button to mark all visible images by this class
-		"text":"All ok",        //           Text of the button
+		"text":"All yes",        //           Text of the button
 		"key":""                //           Keyboard shortcut
 	    },
 	    "button_select":{
-		"text":"Select ok",
+		"text":"Select yea",
 		"key":""
 	    }
 
 	},
 	{
-	    "name":"bad",
-	    "value":254,
-	    "current":true,
+	    "name":"no",
+	    "value":1,
+	    "current":false,
 	    "color":"red",
-	    "button_all":{
-		"text":"All bad",
-		"key":""
-	    },
 	    "button_select":{
-		"text":"Select bad",
+		"text":"Select no",
+		"key":""
+        }
+	},
+	{
+	    "name":"don't know",
+	    "value":0,
+	    "current":false,
+	    "color":"yellow",
+		"text":"All don't know",        //           Text of the button
+		"key":"",                //           Keyboard shortcut
+	    "button_select":{
+		"text":"Select don't know",
 		"key":""
 	    }
+	},
+	{
+	    "name":"unseen",
+	    "value":-1,
+	    "default":true,             // Select default class
+	    "current":false,
+	    "color":"black"
 	}
     ]
 }

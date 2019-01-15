@@ -28,6 +28,7 @@ import os
 
 import sqlite3 as sqlite
 import io
+import shutil
 
 # main logger
 log = logging.getLogger("Klikatko")
@@ -74,6 +75,12 @@ def dict_factory(cursor, row):
         d[col[0]] = row[idx]
     return d
 
+def thumbnail(im, size, fill_color=(0, 0, 0)):
+    im.thumbnail(size)
+    x, y = im.size
+    new_im = Image.new('RGB', size, fill_color)
+    new_im.paste(im, (int((size[0] - x) / 2), int((size[1] - y) / 2)))
+    return new_im
 
 class SQLiteDB(object):
 
@@ -88,37 +95,60 @@ class SQLiteDB(object):
         self.img_table = 'test_images'
         self.att_table = 'test_attributes'
         self.attname = attname
-        self.im_size = [100, 40]
+        self.im_size = [40, 100]
 
-        self.con_out = sqlite.connect(outpath)
-        self.cur_out = self.con_out.cursor()
+        if os.path.isfile(outpath):
+            self.con_out = sqlite.connect(outpath)
+            self.con_out.row_factory = dict_factory
+            self.cur_out = self.con_out.cursor()
+        else:
+            shutil.copyfile(attdbpath, outpath)
+            self.con_out = sqlite.connect(outpath)
+            self.con_out.row_factory = dict_factory
+            self.cur_out = self.con_out.cursor()
+            self.cur_out.execute('UPDATE {} SET {}=-1'.format(self.att_table, self.attname))
 
     def get_image_size(self):
         return self.im_size
 
     def close(self):
+        self.write()
         self.con_img.close()
         self.con_att.close()
+        self.con_out.close()
 
     def get_first_unannotated(self, column=None):
-        item = self.cur_att.execute('SELECT id FROM {} WHERE {}>=0'.format(self.att_table, self.attname)).fetchone()
+        item = self.cur_out.execute('SELECT id FROM {} WHERE {}<0'.format(self.att_table, self.attname)).fetchone()
         return item['id']
 
     def chunk(self, start, n):
-        chunk = self.cur_att.execute('SELECT id, ? FROM {} WHERE id>=? AND id<?'.format(self.att_table), (self.attname, start, start+n)).fetchall()
+        chunk = self.cur_att.execute('SELECT * FROM {} WHERE id>=? AND id<?'.format(self.att_table), (start, start+n)).fetchall()
         return chunk
 
+    def get_input_attributes(self, sid):
+        data = self.cur_att.execute('SELECT * FROM {} WHERE id=?'.format(self.att_table), (sid,)).fetchone()
+        return data
+
+    def get_output_attributes(self, sid):
+        data = self.cur_out.execute('SELECT * FROM {} WHERE id=?'.format(self.att_table), (sid,)).fetchone()
+        return data
+
     def annotate(self, iid, value, column=None):
-        self.cur_att.execute('UPDATE ? SET ?=? WHERE id=?', (self.att_table, self.attname, value, iid))
+        self.cur_out.execute('UPDATE {} SET {}=? WHERE id=?'.format(self.att_table, self.attname), (value, iid))
 
     def imread(self, iid):
         sample = self.con_img.execute('SELECT * FROM {} WHERE id=?'.format(self.img_table), (iid,)).fetchone()
         image = Image.open(io.BytesIO(sample['blob']))
-        image.thumbnail(self.im_size)
+        image = thumbnail(image, self.im_size)
         return image
 
+    def __len__(self):
+        N = self.cur_att.execute('SELECT count(*) FROM {}'.format(self.att_table)).fetchone()
+        return N['count(*)']
+
     def write(self):
-        pass
+        log.debug('Write db')
+        self.con_out.commit()
 
 
 class SampleDB(object):
@@ -356,7 +386,7 @@ class ImageGridTk(tk.Frame):
     def on_next(self, event=None):
         log.debug("on_next()")
 
-        if self.index + self.num_images > self.imagedb.N:
+        if self.index + self.num_images > len(self.imagedb):
             log.debug("End of file!")
         else:
             self.index += self.num_images
@@ -455,8 +485,9 @@ class ImageGridTk(tk.Frame):
         log.debug("Widget size w: {} h: {}".format(widget_width, widget_height))
 
         # size of the image
-        image_width, image_height = self.imagedb.im_size
-        log.debug("Image size w: {} h: {}".format(image_width, image_height))
+        image_width, image_height = self.imagedb.get_image_size()
+        log.debug("Image orig size w: {} h: {}".format(image_width, image_height))
+        log.debug("Image zoomed size w: {} h: {}".format(image_width*self.zoom, image_height*self.zoom))
 
         # compute number of rows and collumns
         rows = int(widget_height // (image_height*self.zoom + 2*self.padding + 2*self.border + 5))
@@ -482,9 +513,18 @@ class ImageGridTk(tk.Frame):
         # create all buttons
         k = 0
         for i,j in islice(product(range(rows), range(cols)), len(chunk)):
-            image_index = self.index + k
+            sample = chunk[k]
+            image_index = sample['id']
 
-            cdesc = self.default_class_desc
+            out_attributes = self.imagedb.get_output_attributes(image_index)
+
+            if out_attributes[self.imagedb.attname] >= 0:
+                cdesc = self.class_descs[out_attributes[self.imagedb.attname]]
+            elif sample[self.imagedb.attname] >= 0:
+                cdesc = self.class_descs[sample[self.imagedb.attname]]
+            else:
+                cdesc = self.default_class_desc 
+
             self.classes[image_index] = cdesc['value']
             button = self.create_image_button(index=image_index,
                                               zoom=self.zoom,
