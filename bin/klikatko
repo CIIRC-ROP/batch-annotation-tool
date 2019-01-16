@@ -12,6 +12,8 @@ Options:
   --config CONFIG    Specifi config file
   --debug            Run in debug mode
   --fullscreen       Display in fullscreen
+  --table TABLE      Table prefix [default: test]
+  --attr ATTR        Attribute to edit [default: backpack]
 """
 
 from klikatko import Config
@@ -51,7 +53,7 @@ def main():
     root = tk.Tk()
 
     # prepare database
-    sampledb = SQLiteDB(opt['<imfile>'], opt['<attfile>'], opt['<outfile>'], 'backpack')
+    sampledb = SQLiteDB(opt['<imfile>'], opt['<attfile>'], opt['<outfile>'], opt['--attr'], opt['--table'])
 
     # if fullscreen open in fullscreen otherwise use geometry in conf file
     if opt['--fullscreen']:
@@ -75,6 +77,7 @@ def dict_factory(cursor, row):
         d[col[0]] = row[idx]
     return d
 
+
 def thumbnail(im, size, fill_color=(0, 0, 0)):
     im.thumbnail(size)
     x, y = im.size
@@ -82,18 +85,20 @@ def thumbnail(im, size, fill_color=(0, 0, 0)):
     new_im.paste(im, (int((size[0] - x) / 2), int((size[1] - y) / 2)))
     return new_im
 
+
 class SQLiteDB(object):
 
-    def __init__(self, imdbpath, attdbpath, outpath, attname):
+    def __init__(self, imdbpath, attdbpath, outpath, attname, table):
         self.con_img = sqlite.connect(imdbpath)
         self.con_img.row_factory = dict_factory
         self.con_att = sqlite.connect(attdbpath)
         self.con_att.row_factory = dict_factory
         self.cur_img = self.con_img.cursor()
         self.cur_att = self.con_att.cursor()
+        self.table = table
 
-        self.img_table = 'test_images'
-        self.att_table = 'test_attributes'
+        self.img_table = '{}_images'.format(self.table)
+        self.att_table = '{}_attributes'.format(self.table)
         self.attname = attname
         self.im_size = [40, 100]
 
@@ -106,7 +111,10 @@ class SQLiteDB(object):
             self.con_out = sqlite.connect(outpath)
             self.con_out.row_factory = dict_factory
             self.cur_out = self.con_out.cursor()
-            self.cur_out.execute('UPDATE {} SET {}=-1'.format(self.att_table, self.attname))
+
+            for table in ['test', 'train']:
+                for attrname in ['boots', 'shoes', 'top', 'gender', 'hat', 'backpack', 'bag', 'handbag', 'downblack', 'downwhite', 'downred', 'downgray', 'downblue', 'downgreen', 'downbrown', 'upblack', 'upwhite', 'upred', 'upgray', 'upblue', 'upgreen', 'uppurple', 'upbrown']:
+                    self.cur_out.execute('UPDATE {}_attributes SET {}=-1'.format(table, attname))
 
     def get_image_size(self):
         return self.im_size
@@ -443,6 +451,7 @@ class ImageGridTk(tk.Frame):
         self.classes[index] = cdesc['value']
         self.update_image_button(index, cdesc)
 
+
     def update_image_button(self, index, cdesc):
         button = self.buttons[index]
         button.configure(bg=cdesc['color'],
@@ -487,6 +496,7 @@ class ImageGridTk(tk.Frame):
         # size of the image
         image_width, image_height = self.imagedb.get_image_size()
         log.debug("Image orig size w: {} h: {}".format(image_width, image_height))
+
         log.debug("Image zoomed size w: {} h: {}".format(image_width*self.zoom, image_height*self.zoom))
 
         # compute number of rows and collumns
@@ -536,6 +546,7 @@ class ImageGridTk(tk.Frame):
         # pack frame
         self.grid.pack()
 
+
     def create_image_button(self, index, cdesc, zoom=1):
         log.debug("create_image_button(index=%d,...)", index)
         button = tk.Button(self.grid,
@@ -556,6 +567,7 @@ class ImageGridTk(tk.Frame):
         return button
 
     def create_toolbar_button(self, text, cmd=None, key=None, side=tk.RIGHT):
+
         log.debug("create_toolbar_button(text=%s,...)", text)
         button = tk.Button(self.tool)
         button["text"] = text
