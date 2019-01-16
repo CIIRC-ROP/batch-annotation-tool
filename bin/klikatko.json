@@ -43,7 +43,7 @@
 	    },
 	    "button_select":{
 		"text":"Select yea",
-		"key":""
+		"key":"w"
 	    }
 
 	},
@@ -54,7 +54,7 @@
 	    "color":"red",
 	    "button_select":{
 		"text":"Select no",
-		"key":""
+		"key":"e"
         }
 	},
 	{
@@ -66,7 +66,7 @@
 		"key":"",                //           Keyboard shortcut
 	    "button_select":{
 		"text":"Select don't know",
-		"key":""
+		"key":"r"
 	    }
 	},
 	{

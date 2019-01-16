@@ -113,8 +113,8 @@ class SQLiteDB(object):
             self.cur_out = self.con_out.cursor()
 
             for table in ['test', 'train']:
-                for attrname in ['boots', 'shoes', 'top', 'gender', 'hat', 'backpack', 'bag', 'handbag', 'downblack', 'downwhite', 'downred', 'downgray', 'downblue', 'downgreen', 'downbrown', 'upblack', 'upwhite', 'upred', 'upgray', 'upblue', 'upgreen', 'uppurple', 'upbrown']:
-                    self.cur_out.execute('UPDATE {}_attributes SET {}=-1'.format(table, attname))
+                for att in ['boots', 'shoes', 'top', 'gender', 'hat', 'backpack', 'bag', 'handbag', 'downblack', 'downwhite', 'downred', 'downgray', 'downblue', 'downgreen', 'downbrown', 'upblack', 'upwhite', 'upred', 'upgray', 'upblue', 'upgreen', 'uppurple', 'upbrown']:
+                    self.cur_out.execute('UPDATE {}_attributes SET {}=-1'.format(table, att))
 
     def get_image_size(self):
         return self.im_size
@@ -344,12 +344,12 @@ class ImageGridTk(tk.Frame):
     def init_class(self, desc):
         if "button_all" in desc:
             button = self.create_toolbar_button(**desc["button_all"],
-                                                cmd=lambda: self.on_mark_all(desc))
+                                                cmd=lambda a=None: self.on_mark_all(desc))
             button.pack(side=tk.LEFT)
 
         if "button_select" in desc:
             button = self.create_toolbar_button(**desc["button_select"],
-                                                cmd=lambda: self.on_select(desc))
+                                                cmd=lambda a=None: self.on_select(desc))
             button.pack(side=tk.LEFT)
 
     def on_configure(self, event):
@@ -469,7 +469,7 @@ class ImageGridTk(tk.Frame):
 
         text = []
 
-        text.append("index: {}".format(self.index))
+        text.append("index: {}/{}".format(self.index, len(self.imagedb)))
 
         if self.num_images > 0:
             text.append("images: {}".format(self.num_images))
