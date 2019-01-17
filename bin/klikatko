@@ -27,6 +27,7 @@ from tkinter import ttk, filedialog
 import logging
 import pandas as pd
 import os
+import random
 
 import sqlite3 as sqlite
 import io
@@ -48,6 +49,7 @@ def main():
         opt["--config"] = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'klikatko.json')
         log.debug("Lookin for config in %s", opt['--config'])
     conf = Config(opt["--config"])
+    random.seed(conf.get('random_seed', 10))
 
     # gui root
     root = tk.Tk()
@@ -96,12 +98,15 @@ class SQLiteDB(object):
         self.cur_img = self.con_img.cursor()
         self.cur_att = self.con_att.cursor()
         self.table = table
+        self.attribute_names = ['boots', 'shoes', 'top', 'gender', 'hat', 'backpack', 'bag', 'handbag', 'downblack', 'downwhite', 'downred', 'downgray', 'downblue', 'downgreen', 'downbrown', 'upblack', 'upwhite', 'upred', 'upgray', 'upblue', 'upgreen', 'uppurple', 'upbrown']
 
         self.img_table = '{}_images'.format(self.table)
         self.att_table = '{}_attributes'.format(self.table)
         self.attname = attname
         self.im_size = [40, 100]
+        self.N = len(self)
 
+        # initialize output
         if os.path.isfile(outpath):
             self.con_out = sqlite.connect(outpath)
             self.con_out.row_factory = dict_factory
@@ -111,10 +116,21 @@ class SQLiteDB(object):
             self.con_out = sqlite.connect(outpath)
             self.con_out.row_factory = dict_factory
             self.cur_out = self.con_out.cursor()
+            self.init_output()
 
-            for table in ['test', 'train']:
-                for att in ['boots', 'shoes', 'top', 'gender', 'hat', 'backpack', 'bag', 'handbag', 'downblack', 'downwhite', 'downred', 'downgray', 'downblue', 'downgreen', 'downbrown', 'upblack', 'upwhite', 'upred', 'upgray', 'upblue', 'upgreen', 'uppurple', 'upbrown']:
-                    self.cur_out.execute('UPDATE {}_attributes SET {}=-1'.format(table, att))
+    def init_output(self):
+
+        for table in ['test', 'train']:
+            for att in self.attribute_names:
+                self.cur_out.execute('UPDATE {}_attributes SET {}=-1'.format(self.table, att))
+
+        # self.cur_out.execute('ALTER TABLE {}_attributes ADD COLUMN _order INTEGER'.format(self.table))
+        self.cur_out.execute('CREATE INDEX i_order ON {}_attributes(_order)'.format(self.table))
+        order = list(range(self.N))
+        random.shuffle(order)
+
+        for i, o in enumerate(order):
+            self.cur_out.execute('UPDATE {} SET _order=? WHERE id=?'.format(self.att_table), (o, i+1))
 
     def get_image_size(self):
         return self.im_size
@@ -126,25 +142,44 @@ class SQLiteDB(object):
         self.con_out.close()
 
     def get_first_unannotated(self, column=None):
-        item = self.cur_out.execute('SELECT id FROM {} WHERE {}<0'.format(self.att_table, self.attname)).fetchone()
-        return item['id']
+        item = self.cur_out.execute('SELECT _order FROM {} WHERE {}<0 ORDER BY _order ASC'.format(self.att_table, self.attname)).fetchone()
+        return item['_order']
 
-    def chunk(self, start, n):
-        chunk = self.cur_att.execute('SELECT * FROM {} WHERE id>=? AND id<?'.format(self.att_table), (start, start+n)).fetchall()
-        return chunk
+    def get_iamge(self, sid):
+        return self.imread(sid)
+
+    def get_sample(self, sid):
+        image = self.imread(sid)
+        attributes = self.get_attributes(sid)
+
+    def get_attributes(self, sid):
+        datain = self.get_input_attributes(sid)
+        dataout = self.get_output_attributes(sid)
+
+        for k in self.attribute_names:
+            vout = dataout.get(k, -1)
+            if vout >= 0:
+                datain[k] = vout
+        return datain
 
     def get_input_attributes(self, sid):
+        sid = self.get_id(sid)
         data = self.cur_att.execute('SELECT * FROM {} WHERE id=?'.format(self.att_table), (sid,)).fetchone()
         return data
 
     def get_output_attributes(self, sid):
-        data = self.cur_out.execute('SELECT * FROM {} WHERE id=?'.format(self.att_table), (sid,)).fetchone()
+        data = self.cur_out.execute('SELECT * FROM {} WHERE _order=?'.format(self.att_table), (sid,)).fetchone()
         return data
 
-    def annotate(self, iid, value, column=None):
-        self.cur_out.execute('UPDATE {} SET {}=? WHERE id=?'.format(self.att_table, self.attname), (value, iid))
+    def get_id(self, sid):
+        data = self.cur_out.execute('SELECT id FROM {} WHERE _order=?'.format(self.att_table), (sid,)).fetchone()
+        return data['id']
 
-    def imread(self, iid):
+    def annotate(self, iid, value, column=None):
+        self.cur_out.execute('UPDATE {} SET {}=? WHERE _order=?'.format(self.att_table, self.attname), (value, iid))
+
+    def imread(self, sid):
+        iid = self.get_id(sid)
         sample = self.con_img.execute('SELECT * FROM {} WHERE id=?'.format(self.img_table), (iid,)).fetchone()
         image = Image.open(io.BytesIO(sample['blob']))
         image = thumbnail(image, self.im_size)
@@ -250,6 +285,7 @@ class ImageGridTk(tk.Frame):
 
         # image db
         self.imagedb = imagedb
+        self.N = len(imagedb)
 
         # button by index in the imagedb
         self.buttons = dict()
@@ -451,7 +487,6 @@ class ImageGridTk(tk.Frame):
         self.classes[index] = cdesc['value']
         self.update_image_button(index, cdesc)
 
-
     def update_image_button(self, index, cdesc):
         button = self.buttons[index]
         button.configure(bg=cdesc['color'],
@@ -522,27 +557,22 @@ class ImageGridTk(tk.Frame):
             self.columnconfigure(j, pad=self.padding)
 
         self.num_images = rows * cols
+        self.num_images = min(self.num_images, self.N - self.index)
 
-        chunk = self.imagedb.chunk(self.index, self.num_images)
-
-        if len(chunk) <= 0:
+        if self.num_images <= 0:
             log.warning("No images!")
             return
 
         # create all buttons
         k = 0
-        for i,j in islice(product(range(rows), range(cols)), len(chunk)):
-            sample = chunk[k]
-            image_index = sample['id']
+        for i,j in islice(product(range(rows), range(cols)), self.num_images):
+            image_index = self.index + k
+            attributes = self.imagedb.get_attributes(image_index)
 
-            out_attributes = self.imagedb.get_output_attributes(image_index)
-
-            if out_attributes[self.imagedb.attname] >= 0:
-                cdesc = self.class_descs[out_attributes[self.imagedb.attname]]
-            elif sample[self.imagedb.attname] >= 0:
-                cdesc = self.class_descs[sample[self.imagedb.attname]]
+            if attributes[self.imagedb.attname] >= 0:
+                cdesc = self.class_descs[attributes[self.imagedb.attname]]
             else:
-                cdesc = self.default_class_desc 
+                cdesc = self.default_class_desc
 
             self.classes[image_index] = cdesc['value']
             button = self.create_image_button(index=image_index,
