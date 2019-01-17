@@ -98,7 +98,7 @@ class SQLiteDB(object):
         self.cur_img = self.con_img.cursor()
         self.cur_att = self.con_att.cursor()
         self.table = table
-        self.attribute_names = ['boots', 'shoes', 'top', 'gender', 'hat', 'backpack', 'bag', 'handbag', 'downblack', 'downwhite', 'downred', 'downgray', 'downblue', 'downgreen', 'downbrown', 'upblack', 'upwhite', 'upred', 'upgray', 'upblue', 'upgreen', 'uppurple', 'upbrown']
+        self.attribute_names = self.get_attribute_names()
 
         self.img_table = '{}_images'.format(self.table)
         self.att_table = '{}_attributes'.format(self.table)
@@ -118,13 +118,18 @@ class SQLiteDB(object):
             self.cur_out = self.con_out.cursor()
             self.init_output()
 
+    def get_attribute_names(self):
+        data = self.cur_att.execute('SELECT * FROM {}_attributes LIMIT 1'.format(self.table)).fetchone()
+        names = [n for n in data.keys() if n not in ['id', 'xref_type', 'xref', 'person']]
+        return names
+        
     def init_output(self):
 
         for table in ['test', 'train']:
             for att in self.attribute_names:
                 self.cur_out.execute('UPDATE {}_attributes SET {}=-1'.format(self.table, att))
 
-        # self.cur_out.execute('ALTER TABLE {}_attributes ADD COLUMN _order INTEGER'.format(self.table))
+        self.cur_out.execute('ALTER TABLE {}_attributes ADD COLUMN _order INTEGER'.format(self.table))
         self.cur_out.execute('CREATE INDEX i_order ON {}_attributes(_order)'.format(self.table))
         order = list(range(self.N))
         random.shuffle(order)
