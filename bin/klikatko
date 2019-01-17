@@ -457,6 +457,15 @@ class ImageGridTk(tk.Frame):
         button.configure(bg=cdesc['color'],
                          activebackground=cdesc['color'])
 
+        image = self.imagedb.imread(index)
+        image.putalpha(self.conf.get('clicked_alpha', 180))
+
+        if self.zoom != 1:
+            image = image.resize((int(image.size[0]*zoom),int(image.size[1]*zoom)))
+        photo = ImageTk.PhotoImage(image)
+        button["image"] = photo
+        button.photo = photo
+
     def clear_all(self):
         log.debug("clear_all()")
         for button in self.buttons.values():
