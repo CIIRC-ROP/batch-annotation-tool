@@ -14,6 +14,7 @@ Options:
   --fullscreen       Display in fullscreen
   --table TABLE      Table prefix [default: test]
   --attr ATTR        Attribute to edit [default: backpack]
+  --filter FILTER    Where query
 """
 
 from klikatko import Config
@@ -51,11 +52,16 @@ def main():
     conf = Config(opt["--config"])
     random.seed(conf.get('random_seed', 10))
 
+    if opt["--filter"] is None:
+        opt["--filter"] = []
+    else:
+        opt["--filter"] = [opt["--filter"]]
+
     # gui root
     root = tk.Tk()
 
     # prepare database
-    sampledb = SQLiteDB(opt['<imfile>'], opt['<attfile>'], opt['<outfile>'], opt['--attr'], opt['--table'])
+    sampledb = SQLiteDB(opt['<imfile>'], opt['<attfile>'], opt['<outfile>'], opt['--attr'], opt['--table'], opt['--filter'])
 
     # if fullscreen open in fullscreen otherwise use geometry in conf file
     if opt['--fullscreen']:
@@ -88,57 +94,141 @@ def thumbnail(im, size, fill_color=(0, 0, 0)):
     return new_im
 
 
+def sql_select(table, select='*', limit=None, filters=[], orderby=[], order='ASC'):
+    select = ', '.join(select)
+    sql = 'SELECT {} FROM {}'.format(select, table)
+
+    if filters:
+        sql += ' WHERE ' + ' AND '.join(filters)
+
+    if orderby:
+        sql += ' ORDER BY ' + ', '.join(orderby) + ' ' + order
+
+    if limit:
+        if isinstance(limit, (int,float)):
+            limit = [limit]
+        sql += ' LIMIT ' + ', '.join([str(v) for v in limit])
+
+    return sql
+
+
 class SQLiteDB(object):
 
-    def __init__(self, imdbpath, attdbpath, outpath, attname, table):
+    def __init__(self, imdbpath, attdbpath, outpath, attname, table, filters):
         self.con_img = sqlite.connect(imdbpath)
         self.con_img.row_factory = dict_factory
         self.con_att = sqlite.connect(attdbpath)
         self.con_att.row_factory = dict_factory
-        self.cur_img = self.con_img.cursor()
         self.cur_att = self.con_att.cursor()
+        self.cur_img = self.con_img.cursor()
         self.table = table
-        self.attribute_names = self.get_attribute_names()
+        self.filters = filters
 
         self.img_table = '{}_images'.format(self.table)
         self.att_table = '{}_attributes'.format(self.table)
         self.attname = attname
         self.im_size = [40, 100]
-        self.N = len(self)
+        self.attribute_names = self.get_attribute_names()
+        self.select_attributes = ['id', self.attname]
+
 
         # initialize output
-        if os.path.isfile(outpath):
-            self.con_out = sqlite.connect(outpath)
-            self.con_out.row_factory = dict_factory
-            self.cur_out = self.con_out.cursor()
-        else:
-            shutil.copyfile(attdbpath, outpath)
-            self.con_out = sqlite.connect(outpath)
-            self.con_out.row_factory = dict_factory
-            self.cur_out = self.con_out.cursor()
-            self.init_output()
+        if not os.path.isfile(outpath):
+            self.init_output(attdbpath, outpath)
+
+        self.con_att.execute('ATTACH "{}" AS out'.format(outpath))
+        self.N = len(self)
 
     def get_attribute_names(self):
-        data = self.cur_att.execute('SELECT * FROM {}_attributes LIMIT 1'.format(self.table)).fetchone()
+        sql = sql_select(self.att_table, limit=[1])
+        data = self.cur_att.execute(sql).fetchone()
         names = [n for n in data.keys() if n not in ['id', 'xref_type', 'xref', 'person']]
         return names
-        
-    def init_output(self):
+
+    def init_output(self, inpath, outpath):
+        log.info('Copy %s -> %s', inpath, outpath)
+        shutil.copyfile(inpath, outpath)
+
+        con = sqlite.connect(outpath)
+        cur = con.cursor()
 
         for table in ['test', 'train']:
             for att in self.attribute_names:
-                self.cur_out.execute('UPDATE {}_attributes SET {}=-1'.format(self.table, att))
+                cur.execute('UPDATE {}_attributes SET {}=-1'.format(self.table, att))
 
-        self.cur_out.execute('ALTER TABLE {}_attributes ADD COLUMN _order INTEGER'.format(self.table))
-        self.cur_out.execute('CREATE INDEX i_order ON {}_attributes(_order)'.format(self.table))
-        order = list(range(self.N))
+        cur.execute('ALTER TABLE {}_attributes ADD COLUMN _order INTEGER'.format(self.table))
+        cur.execute('CREATE INDEX i_order ON {}_attributes(_order)'.format(self.table))
+        
+        N = cur.execute('SELECT count(*) AS count from {}'.format(self.att_table)).fetchone()[0]
+
+        order = list(range(N))
         random.shuffle(order)
 
         for i, o in enumerate(order):
-            self.cur_out.execute('UPDATE {} SET _order=? WHERE id=?'.format(self.att_table), (o, i+1))
+            cur.execute('UPDATE {} SET _order=? WHERE id=?'.format(self.att_table), (o, i+1))
+
+        con.commit()
+        con.close()
+
+    def init_view(self):
+        sql = 'CREATE VIEW attributes AS'
+        sql += '''
+        SELECT b.id AS id,
+        CASE
+            WHEN a.{attname} >= 0 THEN a.{attname}
+            ELSE b.{attname}
+        END AS backpack
+        FROM out.{table} a INNER JOIN main.{table} b ON a.id == b.id
+        '''.format(attname=self.attname, table=self.att_table)
+
+        if self.filters:
+            sql += 'WHERE ' + ' AND '.join(self.filters)
+    
+        sql += ' ORDER BY _order ASC'
+
+        log.debug("View:\n%s", sql)
+        self.cur_att.execute(sql)
+
+    def sql_select_attributes(self, offset, limit=1, orderby='_order', order='ASC', filters=None, select=None):
+
+        if select is None:
+
+            sql = '''SELECT a.id AS id, _order,
+            CASE
+                WHEN a.{attname} >= 0 THEN a.{attname}
+                ELSE b.{attname}
+            END AS backpack
+            '''.format(attname=self.attname)
+        else:
+            sql = 'SELECT ' + ', '.join(select)
+
+        sql += ' FROM out.{table} a INNER JOIN main.{table} b ON a.id == b.id'.format(attname=self.attname, table=self.att_table)
+
+        if filters:
+            sql += ' WHERE ' + ' AND '.join(filters)
+        elif self.filters:
+            sql += ' WHERE ' + ' AND '.join(self.filters)
+
+        sql += ' ORDER BY {} {}'.format(orderby, order)
+        if offset == 0:
+            sql += ' LIMIT {}'.format(limit)
+        else:
+            sql += ' LIMIT {}, {}'.format(offset, limit)
+
+        return sql
 
     def get_image_size(self):
         return self.im_size
+
+    def get_one(self, offset):
+        sql = self.sql_select_attributes(offset)
+        attout = self.cur_att.execute(sql).fetchone()
+        return attout
+
+    def get_many(self, offset, limit):
+        sql = self.sql_select_attributes(offset, limit)
+        chunk = self.cur_att.execute(sql).fetchall()
+        return chunk
 
     def close(self):
         self.write()
@@ -146,131 +236,45 @@ class SQLiteDB(object):
         self.con_att.close()
         self.con_out.close()
 
-    def get_first_unannotated(self, column=None):
-        item = self.cur_out.execute('SELECT _order FROM {} WHERE {}<0 ORDER BY _order ASC'.format(self.att_table, self.attname)).fetchone()
-        return item['_order']
+    def get_first_unannotated(self):
+        filters = self.filters + ['a.{}<0'.format(self.attname)]
+        sql = self.sql_select_attributes(offset=0, filters=filters, limit=1)
+        item = self.cur_att.execute(sql).fetchone()
 
-    def get_iamge(self, sid):
-        return self.imread(sid)
+        select = ['count(*) AS count']
+        filters = self.filters + ['_order<' + str(item['_order'])]
+        sql = self.sql_select_attributes(offset=0, limit=1, filters=filters, select=select)
+        item = self.cur_att.execute(sql).fetchone()
 
-    def get_sample(self, sid):
-        image = self.imread(sid)
-        attributes = self.get_attributes(sid)
+        log.debug('First unannotated: %d', item['count'])
+        return item['count']
 
-    def get_attributes(self, sid):
-        datain = self.get_input_attributes(sid)
-        dataout = self.get_output_attributes(sid)
+    def set_one(self, attributes):
+        log.debug('set_one(%s)', attributes)
+        sid = attributes['id']
+        value = attributes[self.attname]
+        self.cur_att.execute('UPDATE out.{} SET {}=? WHERE id=?'.format(self.att_table, self.attname), (value, sid))
 
-        for k in self.attribute_names:
-            vout = dataout.get(k, -1)
-            if vout >= 0:
-                datain[k] = vout
-        return datain
+    def set_many(self, attributes):
+        for att in attributes:
+            self.set_one(att)
 
-    def get_input_attributes(self, sid):
-        sid = self.get_id(sid)
-        data = self.cur_att.execute('SELECT * FROM {} WHERE id=?'.format(self.att_table), (sid,)).fetchone()
-        return data
-
-    def get_output_attributes(self, sid):
-        data = self.cur_out.execute('SELECT * FROM {} WHERE _order=?'.format(self.att_table), (sid,)).fetchone()
-        return data
-
-    def get_id(self, sid):
-        data = self.cur_out.execute('SELECT id FROM {} WHERE _order=?'.format(self.att_table), (sid,)).fetchone()
-        return data['id']
-
-    def annotate(self, iid, value, column=None):
-        self.cur_out.execute('UPDATE {} SET {}=? WHERE _order=?'.format(self.att_table, self.attname), (value, iid))
-
-    def imread(self, sid):
-        iid = self.get_id(sid)
-        sample = self.con_img.execute('SELECT * FROM {} WHERE id=?'.format(self.img_table), (iid,)).fetchone()
+    def imread(self, attributes):
+        iid = attributes['id']
+        sample = self.con_img.execute('SELECT blob FROM {} WHERE id=?'.format(self.img_table), (iid,)).fetchone()
         image = Image.open(io.BytesIO(sample['blob']))
         image = thumbnail(image, self.im_size)
         return image
 
     def __len__(self):
-        N = self.cur_att.execute('SELECT count(*) FROM {}'.format(self.att_table)).fetchone()
-        return N['count(*)']
+        select = ['count(*) AS count']
+        sql = self.sql_select_attributes(offset=0, limit=1, select=select)
+        item = self.cur_att.execute(sql).fetchone()
+        return item['count']
 
     def write(self):
         log.debug('Write db')
-        self.con_out.commit()
-
-
-class SampleDB(object):
-
-    def __init__(self, filename, outcolumn, incolumn=None, default=''):
-        self.dbfilename = filename
-        log.info("DB file: %s", self.dbfilename)
-
-        self.base_path = os.path.dirname(self.dbfilename)
-        log.info("Base path: %s", self.base_path)
-
-        # get image size
-        self.first_image = None
-        self.im_size = None
-        log.info("Image size: %s", str(self.get_image_size()))
-
-        # config
-        self.conf = Config()
-        self.column_path = self.conf["column_path"]
-        self.column_in = self.conf["column_in"]
-        self.column_out = self.conf["column_out"]
-
-        # table of paths and annotations
-        self.table = pd.read_csv(self.dbfilename,
-                                 sep=self.conf["csv_sep"],
-                                 decimal=self.conf["csv_decimal"],
-                                 header=None)
-
-        self.table = pd_ensure_columns(self.table, max(self.column_in, self.column_out)+1)
-        self.N = self.table.shape[0]
-        log.debug("DB shape: %s", str(self.table.shape))
-
-    def get_image_size(self):
-        if self.im_size is None:
-            # get size of the imag
-            with open(self.dbfilename, "r") as f:
-                _ = f.readline()
-                line = f.readline()
-                imagefile = line.split(";")[0]
-                self.first_image = os.path.join(self.base_path, imagefile)
-
-                with Image.open(self.first_image) as im:
-                    self.im_size = im.size
-
-        return self.im_size
-
-    def chunk(self, start, n):
-        log.debug("chunk(start=%d, n=%d)", start, n)
-        end = min(start + n, self.N)
-        chunk = self.table.iloc[start:end]
-        return chunk
-
-    def annotate(self, index, value, column):
-        self.table.iloc[index, column] = value
-
-    def write(self):
-        self.table.to_csv(self.dbfilename, na_rep='',
-                          sep=self.conf["csv_sep"],
-                          decimal=self.conf["csv_decimal"],
-                          header=False,
-                          index=False,
-                          float_format=self.conf["float_format"])
-        log.info("Saved to %s", self.dbfilename)
-
-    def close(self):
-        self.write()
-        self.dbfile.close()
-
-    def get_first_unannotated(self, column):
-        log.debug("get_first_unannotated(column=%d)", column)
-        i = 0
-        while not (i >= self.N or np.isnan(self.table.iloc[i, column])):
-            i += 1
-        return i
+        self.con_att.commit()
 
 
 class ImageGridTk(tk.Frame):
@@ -296,7 +300,7 @@ class ImageGridTk(tk.Frame):
         self.buttons = dict()
 
         # class value by index in the imagedb
-        self.classes = dict()
+        self.classes = []
 
         # description of the current cass, used when clicked on an image
         self.current_class_desc = None
@@ -308,7 +312,7 @@ class ImageGridTk(tk.Frame):
         self.next_count = 0
 
         # position of the first grid image in the imagedb
-        self.index = self.imagedb.get_first_unannotated(self.column_out)
+        self.index = self.imagedb.get_first_unannotated()
 
         # number of images in the grid view, will be updated by update_ui()
         self.num_images = 0
@@ -386,11 +390,13 @@ class ImageGridTk(tk.Frame):
         if "button_all" in desc:
             button = self.create_toolbar_button(**desc["button_all"],
                                                 cmd=lambda a=None: self.on_mark_all(desc))
+            button['bg'] = desc['color']
             button.pack(side=tk.LEFT)
 
         if "button_select" in desc:
             button = self.create_toolbar_button(**desc["button_select"],
                                                 cmd=lambda a=None: self.on_select(desc))
+            button['bg'] = desc['color']
             button.pack(side=tk.LEFT)
 
     def on_configure(self, event):
@@ -484,12 +490,11 @@ class ImageGridTk(tk.Frame):
 
     def store_annotations(self):
         # store annotations
-        for key, val in self.classes.items():
-            self.imagedb.annotate(key, val, self.column_out)
+        self.imagedb.set_many(self.attributes)
 
     def annotate(self, index, cdesc):
         log.debug("annotate(index=%d)", index)
-        self.classes[index] = cdesc['value']
+        self.attributes[index][self.imagedb.attname] = cdesc['value']
         self.update_image_button(index, cdesc)
 
     def update_image_button(self, index, cdesc):
@@ -497,11 +502,11 @@ class ImageGridTk(tk.Frame):
         button.configure(bg=cdesc['color'],
                          activebackground=cdesc['color'])
 
-        image = self.imagedb.imread(index)
-        image.putalpha(self.conf.get('clicked_alpha', 180))
+        image = self.imagedb.imread(self.attributes[index])
+        image.putalpha(self.conf.get('clicked_alpha', 100))
 
         if self.zoom != 1:
-            image = image.resize((int(image.size[0]*zoom),int(image.size[1]*zoom)))
+            image = image.resize((int(image.size[0]*self.zoom),int(image.size[1]*self.zoom)))
         photo = ImageTk.PhotoImage(image)
         button["image"] = photo
         button.photo = photo
@@ -556,13 +561,14 @@ class ImageGridTk(tk.Frame):
 
         # cnfigure padding
         for i in range(rows):
-            self.rowconfigure(i, pad=self.padding)
+            self.grid.rowconfigure(i, pad=self.padding)
 
         for j in range(cols):
-            self.columnconfigure(j, pad=self.padding)
+            self.grid.columnconfigure(j, pad=self.padding)
 
         self.num_images = rows * cols
-        self.num_images = min(self.num_images, self.N - self.index)
+        self.attributes = self.imagedb.get_many(self.index, self.num_images)
+        self.num_images = len(self.attributes)
 
         if self.num_images <= 0:
             log.warning("No images!")
@@ -570,26 +576,16 @@ class ImageGridTk(tk.Frame):
 
         # create all buttons
         k = 0
-        for i,j in islice(product(range(rows), range(cols)), self.num_images):
-            image_index = self.index + k
-            attributes = self.imagedb.get_attributes(image_index)
+        for i, j in islice(product(range(rows), range(cols)), self.num_images):
+            cdesc = self.class_descs[self.attributes[k][self.imagedb.attname]]
 
-            if attributes[self.imagedb.attname] >= 0:
-                cdesc = self.class_descs[attributes[self.imagedb.attname]]
-            else:
-                cdesc = self.default_class_desc
-
-            self.classes[image_index] = cdesc['value']
-            button = self.create_image_button(index=image_index,
-                                              zoom=self.zoom,
-                                              cdesc=cdesc)
+            button = self.create_image_button(k, zoom=self.zoom, cdesc=cdesc)
             button.grid(row=i, column=j)
-            self.buttons[image_index] = button
+            self.buttons[k] = button
             k += 1
 
         # pack frame
         self.grid.pack()
-
 
     def create_image_button(self, index, cdesc, zoom=1):
         log.debug("create_image_button(index=%d,...)", index)
@@ -599,9 +595,9 @@ class ImageGridTk(tk.Frame):
                            activebackground=cdesc['color'],
                            relief=tk.FLAT)
 
-        button["text"] = str(index)
+        button["text"] = str(self.attributes[index]['id'])
         button["command"] = lambda: self.on_click(index)
-        image = self.imagedb.imread(index)
+        image = self.imagedb.imread(self.attributes[index])
 
         if zoom != 1:
             image = image.resize((int(image.size[0]*zoom),int(image.size[1]*zoom)))
