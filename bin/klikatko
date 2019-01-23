@@ -4,7 +4,6 @@
 
 Usage:
   klikatko -h | --help
-  klikatko [options]
   klikatko [options] <imfile> <attfile> <outfile>
 
 Options:
@@ -15,6 +14,14 @@ Options:
   --table TABLE      Table prefix [default: test]
   --attr ATTR        Attribute to edit [default: backpack]
   --filter FILTER    Where query
+
+The filter follows the SQL WHERE syntax, uses a,b prefixes, where a is for the
+outpud db and b is for input attribute db. Some examples:
+
+    klikatko im.db att.db out.db --filter b.backpack=1
+    klikatko im.db att.db out.db --filter "b.backpack=1 OR a.backpack=1"
+
+
 """
 
 from klikatko import Config
@@ -131,7 +138,6 @@ class SQLiteDB(object):
         self.attribute_names = self.get_attribute_names()
         self.select_attributes = ['id', self.attname]
 
-
         # initialize output
         if not os.path.isfile(outpath):
             self.init_output(attdbpath, outpath)
@@ -241,10 +247,16 @@ class SQLiteDB(object):
         sql = self.sql_select_attributes(offset=0, filters=filters, limit=1)
         item = self.cur_att.execute(sql).fetchone()
 
+        if item is None:
+            return 0
+
         select = ['count(*) AS count']
         filters = self.filters + ['_order<' + str(item['_order'])]
         sql = self.sql_select_attributes(offset=0, limit=1, filters=filters, select=select)
         item = self.cur_att.execute(sql).fetchone()
+
+        if item is None:
+            return 0
 
         log.debug('First unannotated: %d', item['count'])
         return item['count']
