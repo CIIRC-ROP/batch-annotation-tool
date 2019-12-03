@@ -1,17 +1,12 @@
 # Batch Annotation Tools (klikatko)
 
-Simple tool for fast annotation and reanotation of large amount of images. Thoroughly configurable, works on top of sqlite database.
+Simple tool for fast annotation and reanotation of large amount of images. Written in python usng Tk library, thoroughly configurable using JSON file, works on top of sqlite database.
 
 ![fig](fig/screencap.gif)
 
-## Features
-
-- Images read from csv file
-- Configuration read from JSON file
-
 ## Requirements and Installation
 
-- Tested on Ubuntu 16.04, Windows (with anaconda)
+- Tested on Archlinux, Ubuntu 16.04, Windows (with anaconda)
 
 ### Requirements
 
@@ -21,7 +16,6 @@ Simple tool for fast annotation and reanotation of large amount of images. Thoro
  - [pillow](http://python-pillow.org/), image processing.
 
 ### Installation (Linux, Windows, MacOS)
-
 
 From source
 ```shell
@@ -35,16 +29,37 @@ $ pip3 install -e . # for development
 ```
 
 Directly from git
-``` shell
-pip3 install git+http://gitlab.ciirc.cvut.cz:b635/annotation_tools.git
+```shell
+pip3 install git+https://github.com/CIIRC-ROP/batch-annotation-tool.git
 ```
 
 ## Usage (Linux)
 
 - See the [User Guide](user_guide.md)
 
-``` shell
+```shell
 $ klikatko -h
+
+klikatko: Batch Annotation Tool
+
+Usage:
+  klikatko -h | --help
+  klikatko [options] <imfile> <attfile> <outfile>
+
+Options:
+  -h, --help
+  --config CONFIG    Specifi config file
+  --debug            Run in debug mode
+  --fullscreen       Display in fullscreen
+  --table TABLE      Table prefix [default: test]
+  --attr ATTR        Attribute to edit [default: backpack]
+  --filter FILTER    Where query
+
+The filter follows the SQL WHERE syntax, uses a,b prefixes, where a is for the
+outpud db and b is for input attribute db. Some examples:
+
+    klikatko im.db att.db out.db --filter b.backpack=1
+    klikatko im.db att.db out.db --filter "b.backpack=1 OR a.backpack=1"
 ```
 
 ## Usage (Windows binary)
@@ -61,7 +76,7 @@ $ klikatko.exe ../data/test.csv
 - Configuration is written in JSON format, with the comment extension.
 - Content of the `klikatko.json`:
 
-``` json
+```
 {
 
     // User interface
@@ -90,8 +105,8 @@ $ klikatko.exe ../data/test.csv
 	    "default":true,             // Select default class
 	    "color":"green",            // Color used to mark this class
 	    "button_all":{              // Optional: Button to mark all visible images by this class
-		"text":"All ok",        //           Text of the button
-		"key":""                //           Keyboard shortcut
+		"text":"All ok",            // Text of the button
+		"key":""                    // Keyboard shortcut
 	    },
 	    "button_select":{
 		"text":"Select ok",
@@ -118,27 +133,3 @@ $ klikatko.exe ../data/test.csv
 
 ```
 
-# Development notes
-
-- [TKinter: Get Widget Size](https://stackoverflow.com/questions/3950687/how-to-find-out-the-current-widget-size-in-tkinter)
-- [TKinter: Fullscreen](https://stackoverflow.com/questions/7966119/display-fullscreen-mode-on-tkinter)
-- [TKinter: Tutorial](http://zetcode.com/gui/tkinter/)
-- [TKinter: Image View Example](https://stackoverflow.com/questions/17504570/creating-simply-image-gallery-in-python-tkinter-pil#17505256)
-- [TKinter: Canvas Widgets](https://www.python-course.eu/tkinter_canvas.php)
-- [Comment JSON](https://commentjson.readthedocs.io/en/latest/), library for parsing commented json files.
-- [Pyton vs MATLAB](https://blog.mide.com/matlab-vs-python-speed-for-vibration-analysis-free-download), read speed of csv.
-- [TKinter: Two Frames Stacked](https://stackoverflow.com/questions/7546050/switch-between-two-frames-in-tkinter)
-- [atexit](https://docs.python.org/3.6/library/atexit.html), library for handling closing of the application.
-
-## TODOs
-
- - [x] Show name of the last clicked file
- - [ ] Copy name of the last clicked file into clipboard
- - [x] Key Shortcuts
- - [x] Fix next when no more images
- - [ ] Multiple keys for single action
-
-## Generating windows exe
-
-- using pyinstaller
-- 
