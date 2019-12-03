@@ -8,14 +8,14 @@ Simple tool for fast annotation and reanotation of large amount of images. Writt
 
 - Tested on Archlinux, Ubuntu 16.04, Windows (with anaconda)
 
-### Requirements
+## Requirements
 
  - [Python 3.X](https://www.python.org)
  - [TKinter](https://docs.python.org/3.6/library/tkinter.html), GUI library,  part of standard python library.
  - [pandas](https://pandas.pydata.org/), for faster csv processing.
  - [pillow](http://python-pillow.org/), image processing.
 
-### Installation (Linux, Windows, MacOS)
+## Installation (Linux, Windows, MacOS)
 
 From source
 ```shell
@@ -37,7 +37,7 @@ pip3 install git+https://github.com/CIIRC-ROP/batch-annotation-tool.git
 
 - See the [User Guide](user_guide.md)
 
-```shell
+```
 $ klikatko -h
 
 klikatko: Batch Annotation Tool
@@ -60,15 +60,6 @@ outpud db and b is for input attribute db. Some examples:
 
     klikatko im.db att.db out.db --filter b.backpack=1
     klikatko im.db att.db out.db --filter "b.backpack=1 OR a.backpack=1"
-```
-
-## Usage (Windows binary)
-
-The binnary is on grid `/mnt/projects/csbeton/annotation_tools/dist` along with sample input (`../data`) and config files.
-
-```
-$ klikatko.exe -h
-$ klikatko.exe ../data/test.csv
 ```
 
 ## Configuration file
