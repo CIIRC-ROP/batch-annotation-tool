@@ -1,4 +1,8 @@
-# Annotation tools a.k.a. klikatko
+# Batch Annotation Tools (klikatko)
+
+Simple tool for fast annotation and reanotation of large amount of images. Thoroughly configurable, works on top of sqlite database.
+
+![fig](fig/screencap.gif)
 
 ## Features
 
