@@ -6,24 +6,22 @@ date: August 28, 2018
 
 # Klikatko User Guide
 
-Klikatko is a tool to annotate images into number of classes.
+Klikatko is a tool to annotate images into several classes. The user guide describes the basic idea of the program control.
 
-![klikatko](fig/klikatko_mid.png)
+![klikatko](fig/klikatko_used.png)
 
 ## Start the program
 
 - Linux
 
 ```
-$ bin/klikatko data/test.csv
-$ bin/klikatko # Will show file open dialog
+$ bin/klikatko [options] <imfile> <attfile> <outfile>
 ```
 
-- Windows
+- Windows (command window)
 
 ```
-$ python bin/klikatko
-$ python bin/klikatko data/test.csv
+$ python bin\klikatko [options] <imfile> <attfile> <outfile>
 ```
 
 ## User interface
@@ -31,24 +29,26 @@ $ python bin/klikatko data/test.csv
 ![klikatko](fig/klikatko_desc.jpg)
 
 - Annotation area
-    - the annotation area consist of images in a grid
-    - each image has colored margin, the color represent the assigned class
-    - when new set of images is show the default class is assigned to all images
-    - when image is clicked it is assigned class which is being currently selected
+    - the annotation area consists of images in a grid
+    - each image has colored margin, the color represents the originally assigned class
+    - when the image is clicked it is assigned class which is being currently selected
+    - the class selected by the user is indicated by coloring the whole image with some transparency
+    - the colors for classes are defined in the configuration file
 - Annotation buttons
-    - **All ok** -  mark all visible images as __ok__
-    - **Select ok** - start marking __ok__ images (current mode is shown in the info bar)
-    - **All bad** - mark all visible images as __bad__
-    - **Select ok** - start marking __bad__ images (current mode is shown in the info bar)
-    - **Prev** (`←`) - move to previous set of images (**does not store the annotations!**)
-    - **Next** (`→`)- move to next set of set of images (**does not store the annotations!**)
-    - **Next and save** (`↵`) - move to next set of image and **store the annotations**
+    - The annotation buttons are defined by configuration file
+    - In our example, buttons for three clases annnotation are defined:
+      - **All yes** -  mark all visible images as class 1
+      - **Select yes** - start marking class 1 (current mode is shown in the info bar)
+      - **Select no** - start marking class 2 (current mode is shown in the info bar)
+      - **Select don't know** - start marking class 3 (current mode is shown in the info bar)
+    - **Prev** (`←`) - move to previous set (page) of images (**does not store the annotations!**)
+    - **Next** (`→`)- move to next set of set (page) of images (**does not store the annotations!**)
+    - **Next and save** (`↵`) - move to next set (page) of image and **store the annotations**
 - Zoom buttons
-    - **+/-** - zoom in and zoom out (current zoom is shown in the infobar)
+    - **+/-** - zoom in and zoom out (current zoom is shown in the information line)
 - Information line
-    - The color of the bar shows the mode, when green the ok are being selected, when red the bad are being selected
-    - **index** - index number of the first image
+    - The color of the bar corresponds to the color of the class which is selected
+    - **index** / **total number** - index of the first image and total number of images
     - **images** - number of images in the set i.e. visible images
-    - **select** - shows which class (ok, bad) are being selected
+    - **select** - shows which class are being selected
     - **zoom** - current zoom level
-    - **last** - path to the last clicked image, is can be copied into clipboard using `C-c`
