@@ -38,7 +38,30 @@ The program work with three database tables in three databased:
 - Attribute database table - define original annotation
 - Output database table - new user annotation 
 
-Names of the corresponding databases are defined by command line arguments <imfile>,  <attfile> and <outfile>. Names of the three tables are partially defined by the command line option "--table TABLE". The TABLE option represents the prefix of the names of the tables.
+The images are read from the image table and presented to the user together with the original annotations. The original annotations are read from the attribute table. The user makes changes of annotations and the results are written as a new annotation into the output table. The images are presented to the user according to the order defined by column "_order" in the output table. The order is generated when annotation of the data are first time started.
+
+Names of the corresponding databases are defined by command line arguments <imfile>, <attfile> and <outfile>. Names of the three tables are partially defined by the command line option "--table TABLE". The TABLE option represents the prefix of the names of the tables. All tables contain the column "id" (integer) which represents a common reference key.
+
+### Structure of the tables:
+
+- Image database table
+  - Database namer: <imfile> (path to the file)
+  - Table name: TABLE_images
+  - Data column: blob (contains image binary data)
+  - Images are read by the pillow module, which implements many types of image files. We usually use JPG and PNG images.
+    
+- Attribute database table
+  - Database namer: <attfile> (path to the file)
+  - Table name: TABLE_attributes
+  - Data column: is definde by command line option "--attr ATTR"
+  - Type of the ATTR column should be integer.
+    
+- Output database table
+  - Database namer: <outfile> (path to the file)
+  - Table name: TABLE_attributes
+  - The table should have the same structure as the attribute database table, but with column "_order".
+  - Before the start of the annotation, the output database may not contain the output table. The table will be created and the data will be copied from the attribute database table.
+  - When the table has a different structure, the program is not working.
 
 ## Usage (Linux)
 
