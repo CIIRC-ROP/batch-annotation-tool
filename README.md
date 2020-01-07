@@ -152,3 +152,8 @@ Example of the configuration file for annotation of two classes:
 
 ```
 
+## Acknowledgment
+
+This work was supported by the Ministry of the Interior of the Czech Republic 
+under Project VI20172019082 - Smart Camera.
+
