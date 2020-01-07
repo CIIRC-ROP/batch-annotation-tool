@@ -116,14 +116,6 @@ Example of the configuration file for annotation of two classes:
     "geometry":"1000x1000+200+200", // Initial geometry of the window (HxH+x+y)
     "background":"black", // Grid background
 
-    // Annotation file
-    "csv_sep":";",      // Column separator for cvs parsing
-    "csv_decimal":".",  // Decimal separator for cvs parsing
-    "column_path":0,    // Column of the image path, starting from 0
-    "column_in":1,      // Input columnt for annotation, -1 for none
-    "column_out":2,     // Output column for annotation
-    "defaul_class":1,   // Value of the default class
-
     // Annotation
     "classes":[
 	{
