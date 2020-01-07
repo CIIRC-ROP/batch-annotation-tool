@@ -4,7 +4,7 @@ A simple tool for fast annotation and reannotation of a large number of images. 
 
 ![fig](fig/screencap.gif)
 
-## Requirements and Installation
+## Supported OS
 
 - Tested on Archlinux, Ubuntu 16.04, Windows (with anaconda)
 
