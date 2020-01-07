@@ -19,9 +19,7 @@ Simple tool for fast annotation and reanotation of large amount of images. Writt
 
 From source
 ```shell
-$ git clone git@gitlab.ciirc.cvut.cz:b635/annotation_tools.git
-# or
-$ git clone http://gitlab.ciirc.cvut.cz/b635/annotation_tools.git
+$ git clone https://github.com/CIIRC-ROP/batch-annotation-tool.git
 $ cd annotation_tools
 $ pip3 install . # normal installation
 # or
