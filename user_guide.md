@@ -8,7 +8,7 @@ date: August 28, 2018
 
 Klikatko is a tool to annotate images into number of classes.
 
-![klikatko](fig/klikatko.png)
+![klikatko](fig/klikatko_mid.png)
 
 ## Start the program
 
@@ -28,7 +28,7 @@ $ python bin/klikatko data/test.csv
 
 ## User interface
 
-![klikatko](fig/klikatko_annotated.png)
+![klikatko](fig/klikatko_desc.jpg)
 
 - Annotation area
     - the annotation area consist of images in a grid
@@ -45,7 +45,7 @@ $ python bin/klikatko data/test.csv
     - **Next and save** (`↵`) - move to next set of image and **store the annotations**
 - Zoom buttons
     - **+/-** - zoom in and zoom out (current zoom is shown in the infobar)
-- Info bar
+- Information line
     - The color of the bar shows the mode, when green the ok are being selected, when red the bad are being selected
     - **index** - index number of the first image
     - **images** - number of images in the set i.e. visible images
