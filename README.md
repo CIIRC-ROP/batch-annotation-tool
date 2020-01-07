@@ -1,6 +1,6 @@
 # Batch Annotation Tools (klikatko)
 
-Simple tool for fast annotation and reanotation of large amount of images. Written in python usng Tk library, thoroughly configurable using JSON file, works on top of sqlite database.
+A simple tool for fast annotation and reannotation of a large number of images. Written in python using Tk library, thoroughly configurable using JSON file, works on top of SQLite database. The program presents images from the input database to the user together with the original annotation when is defined. The original annotation is read from another input database table. The user can change the annotation of selected images. Then the updated annotation is written into the output database table. Images with annotation written in the output table are no longer presented to the user. Users can break the annotation process and return back to annotate the rest of the images.
 
 ![fig](fig/screencap.gif)
 
@@ -30,6 +30,15 @@ Directly from git
 ```shell
 pip3 install git+https://github.com/CIIRC-ROP/batch-annotation-tool.git
 ```
+## Model and structure of data
+
+The program work with three database tables in three databased:
+
+- Image database table - contains the annotated images
+- Attribute database table - define original annotation
+- Output database table - new user annotation 
+
+Names of the corresponding databases are defined by command line arguments <imfile>,  <attfile> and <outfile>. Names of the three tables are partially defined by the command line option "--table TABLE". The TABLE option represents the prefix of the names of the tables.
 
 ## Usage (Linux)
 
@@ -62,9 +71,15 @@ outpud db and b is for input attribute db. Some examples:
 
 ## Configuration file
 
-- Configuration is written in JSON format, with the comment extension.
+The program is fully configurable by the config file. 
+The configuration allows us to set user interface default 
+parameters, data format parameters, and classes for annotation. 
+Multi-class annotation is possible.
+
+- The configuration is written in JSON format, with the comment extension.
 - Content of the `klikatko.json`:
 
+Example of the configuration file for annotation of two classes:
 ```
 {
 
