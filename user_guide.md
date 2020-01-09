@@ -8,10 +8,8 @@ date: August 28, 2018
 
 Klikatko is a tool to annotate images into several classes. The user guide describes the basic idea of the program control.
 
-![klikatko](fig/klikatko_used.png)
-
 <p align="center">
-  <img width="460" height="300" src="fig/klikatko_used.png">
+  <img src="fig/klikatko_used.png">
 </p>
 
 ## Start the program
