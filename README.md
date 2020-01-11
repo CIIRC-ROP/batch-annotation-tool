@@ -45,19 +45,19 @@ Names of the corresponding databases are defined by command line arguments <imfi
 ### Structure of the tables:
 
 - Image database table
-  - Database namer: <imfile> (path to the file)
+  - Database name: \<imfile\> (path to the file)
   - Table name: TABLE_images
   - Data column: blob (contains image binary data)
   - Images are read by the pillow module, which implements many types of image files. We usually use JPG and PNG images.
     
 - Attribute database table
-  - Database namer: <attfile> (path to the file)
+  - Database name: \<attfile\> (path to the file)
   - Table name: TABLE_attributes
   - Data column: is definde by command line option "--attr ATTR"
   - Type of the ATTR column should be integer.
     
 - Output database table
-  - Database namer: <outfile> (path to the file)
+  - Database name: \<outfile\> (path to the file)
   - Table name: TABLE_attributes
   - The table should have the same structure as the attribute database table, but with column "_order".
   - Before the start of the annotation, the output database may not contain the output table. The table will be created and the data will be copied from the attribute database table.
