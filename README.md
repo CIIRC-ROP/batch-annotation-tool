@@ -100,9 +100,8 @@ parameters, data format parameters, and classes for annotation.
 Multi-class annotation is possible.
 
 - The configuration is written in JSON format, with the comment extension.
-- Content of the `klikatko.json`:
 
-Example of the configuration file for annotation of two classes:
+Example of the configuration file `klikatko.json` for annotation of two classes:
 ```
 {
 
